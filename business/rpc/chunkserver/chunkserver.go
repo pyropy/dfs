@@ -1,4 +1,6 @@
-package rpc
+package chunkserver
+
+import "github.com/google/uuid"
 
 type HealthCheckArgs struct {
 }
@@ -9,12 +11,13 @@ type HealthCheckReply struct {
 }
 
 type CreateChunkRequest struct {
-	ChunkID      int
+	ChunkID      uuid.UUID
 	ChunkVersion int
+	ChunkSize    int
 }
 
 type CreateChunkReply struct {
-	ChunkID int
+	ChunkID uuid.UUID
 }
 
 type ChunkServer interface {

@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"os"
 	fp "path/filepath"
 )
@@ -11,21 +12,21 @@ import (
 // to hold file/dir metadata so users can traverse filesystem
 
 type Chunk struct {
-	ID       int
+	ID       uuid.UUID
 	Version  int
 	Path     string // disk path
 	Checksum int
 }
 
 type ChunkServer struct {
-	Chunks map[int]Chunk
+	Chunks map[uuid.UUID]Chunk
 }
 
 var (
 	ErrChunkAlreadyExists = errors.New("Chunk already exists")
 )
 
-func (c *ChunkServer) CreateChunk(id, version int) (*Chunk, error) {
+func (c *ChunkServer) CreateChunk(id uuid.UUID, version, sizeBytes int) (*Chunk, error) {
 	existingChunk, exists := c.Chunks[id]
 
 	if exists && existingChunk.Version == version {
@@ -36,6 +37,11 @@ func (c *ChunkServer) CreateChunk(id, version int) (*Chunk, error) {
 	filepath := fp.Join("chunks", filename)
 
 	_, err := os.Create(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = os.Truncate(filepath, int64(sizeBytes))
 	if err != nil {
 		return nil, err
 	}

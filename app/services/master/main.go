@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/pyropy/dfs/business/core"
-	rpcCore "github.com/pyropy/dfs/business/rpc"
+	masterRPC "github.com/pyropy/dfs/business/rpc/master"
 	"log"
 	"net"
 	"net/http"
@@ -10,61 +10,44 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+)
+
+var (
+	ReplicationFactor     = 3
+	chunkSizeBytes    int = 64 * 10e+6
 )
 
 type MasterAPI struct {
 	Master *core.Master
 }
 
-func (m *MasterAPI) RegisterChunkServer(args rpcCore.RegisterArgs, reply rpcCore.RegisterReply) error {
+func NewMasterAPI(master *core.Master) *MasterAPI {
+	return &MasterAPI{
+		Master: master,
+	}
+}
+
+func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *masterRPC.RegisterReply) error {
 	m.Master.Mutex.Lock()
 	defer m.Master.Mutex.Unlock()
 
-	chunkServer := m.Master.RegisterChunkServer(args.Address)
+	chunkServer := m.Master.RegisterNewChunkServer(args.Address)
 	reply.ID = chunkServer.ID
+
+	log.Println("Registered new chunk server", chunkServer.ID, chunkServer.Address)
 
 	return nil
 }
 
-// TODO: Move to core
-func CheckHealth(master *core.Master) {
-	ticker := time.NewTicker(1 * time.Second)
+func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
 
-	checkHealth := func(i int) {
-		chunkServer := master.Chunkservers[i]
-		client, err := rpc.DialHTTP("tcp", chunkServer.Address)
-		if err != nil {
-			log.Println("error", chunkServer.Address, "unreachable")
-			master.Chunkservers[i].Healthy = false
-			return
-		}
-
-		var reply rpcCore.HealthCheckReply
-		args := &rpcCore.HealthCheckArgs{}
-		err = client.Call("ChunkServerAPI.HealthCheck", args, &reply)
-		if err != nil {
-			log.Println("error", chunkServer.Address, "error", err)
-			master.Chunkservers[i].Healthy = false
-			return
-		}
-
-		if reply.Status < 299 {
-			master.Chunkservers[i].Healthy = true
-			return
-		}
-
-		master.Chunkservers[i].Healthy = false
+	file, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, chunkSizeBytes)
+	if err != nil {
+		return err
 	}
 
-	for {
-		select {
-		case _ = <-ticker.C:
-			for i := 0; i < len(master.Chunkservers); i++ {
-				go checkHealth(i)
-			}
-		}
-	}
+	reply.Chunks = file.Chunks
+	return nil
 }
 
 func main() {
@@ -74,11 +57,10 @@ func main() {
 }
 
 func run() error {
-	master := new(core.Master)
-	masterAPI := MasterAPI{
-		Master: master,
-	}
-	rpc.Register(&masterAPI)
+	master := core.NewMaster()
+	masterAPI := NewMasterAPI(master)
+
+	rpc.Register(masterAPI)
 	rpc.HandleHTTP()
 	l, err := net.Listen("tcp", ":1234")
 	if err != nil {
@@ -93,7 +75,7 @@ func run() error {
 	log.Println("startup", "status", "chunkservers found", len(master.Chunkservers))
 
 	log.Println("startup", "status", "starting healtcheck")
-	go CheckHealth(master)
+	go master.StartHealthCheckService()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
