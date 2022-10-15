@@ -18,7 +18,7 @@ func main() {
 	var reply master.CreateNewFileReply
 	args := &master.CreateNewFileArgs{
 		Path: "/test/me",
-		Size: 1 * 10e+6,
+		Size: 64 * 10e+6,
 	}
 
 	err = client.Call("MasterAPI.CreateNewFile", args, &reply)
@@ -26,4 +26,6 @@ func main() {
 		log.Fatalln(err)
 		return
 	}
+
+	log.Println(reply)
 }

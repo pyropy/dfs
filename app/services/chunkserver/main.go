@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/pyropy/dfs/business/core"
+	"github.com/pyropy/dfs/business/core/chunkserver"
 	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
 	"github.com/pyropy/dfs/business/rpc/master"
 	"log"
@@ -19,10 +19,10 @@ var ListenAddr = "localhost"
 var ListenPort = 0
 
 type ChunkServerAPI struct {
-	ChunkServer *core.ChunkServer
+	ChunkServer *chunkserver.ChunkServer
 }
 
-func NewChunkServerAPI(chunkServer *core.ChunkServer) *ChunkServerAPI {
+func NewChunkServerAPI(chunkServer *chunkserver.ChunkServer) *ChunkServerAPI {
 	return &ChunkServerAPI{
 		ChunkServer: chunkServer,
 	}
@@ -37,6 +37,7 @@ func (c *ChunkServerAPI) HealthCheck(_ *chunkServerRPC.HealthCheckArgs, reply *c
 
 // CreateChunk ...
 func (c *ChunkServerAPI) CreateChunk(request *chunkServerRPC.CreateChunkRequest, reply *chunkServerRPC.CreateChunkReply) error {
+	log.Println("ChunkServerAPI.CreateChunk", request)
 	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkVersion, request.ChunkSize)
 	if err != nil {
 		return err
@@ -53,7 +54,7 @@ func main() {
 }
 
 func run() error {
-	chunkServer := new(core.ChunkServer)
+	chunkServer := chunkserver.NewChunkServer()
 	chunkServerAPI := NewChunkServerAPI(chunkServer)
 
 	rpc.Register(chunkServerAPI)

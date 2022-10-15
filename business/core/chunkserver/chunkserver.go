@@ -1,4 +1,4 @@
-package core
+package chunkserver
 
 import (
 	"errors"
@@ -26,6 +26,12 @@ var (
 	ErrChunkAlreadyExists = errors.New("Chunk already exists")
 )
 
+func NewChunkServer() *ChunkServer {
+	return &ChunkServer{
+		Chunks: map[uuid.UUID]Chunk{},
+	}
+}
+
 func (c *ChunkServer) CreateChunk(id uuid.UUID, version, sizeBytes int) (*Chunk, error) {
 	existingChunk, exists := c.Chunks[id]
 
@@ -33,7 +39,7 @@ func (c *ChunkServer) CreateChunk(id uuid.UUID, version, sizeBytes int) (*Chunk,
 		return nil, ErrChunkAlreadyExists
 	}
 
-	filename := fmt.Sprintf("%d-%d", id, version)
+	filename := fmt.Sprintf("%s-%d", id, version)
 	filepath := fp.Join("chunks", filename)
 
 	_, err := os.Create(filepath)

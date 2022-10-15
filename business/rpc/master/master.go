@@ -25,5 +25,6 @@ type CreateNewFileArgs struct {
 }
 
 type CreateNewFileReply struct {
-	Chunks []uuid.UUID
+	Chunks         []uuid.UUID
+	ChunkServerIDs []uuid.UUID
 }

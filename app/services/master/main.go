@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/pyropy/dfs/business/core"
+	"github.com/pyropy/dfs/business/core/master"
 	masterRPC "github.com/pyropy/dfs/business/rpc/master"
 	"log"
 	"net"
@@ -18,19 +18,16 @@ var (
 )
 
 type MasterAPI struct {
-	Master *core.Master
+	Master *master.Master
 }
 
-func NewMasterAPI(master *core.Master) *MasterAPI {
+func NewMasterAPI(master *master.Master) *MasterAPI {
 	return &MasterAPI{
 		Master: master,
 	}
 }
 
 func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *masterRPC.RegisterReply) error {
-	m.Master.Mutex.Lock()
-	defer m.Master.Mutex.Unlock()
-
 	chunkServer := m.Master.RegisterNewChunkServer(args.Address)
 	reply.ID = chunkServer.ID
 
@@ -40,13 +37,14 @@ func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *mas
 }
 
 func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
-
-	file, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, chunkSizeBytes)
+	log.Println("CreateNewFile", args)
+	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, chunkSizeBytes)
 	if err != nil {
 		return err
 	}
 
 	reply.Chunks = file.Chunks
+	reply.ChunkServerIDs = chunkServerIds
 	return nil
 }
 
@@ -57,7 +55,7 @@ func main() {
 }
 
 func run() error {
-	master := core.NewMaster()
+	master := master.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
 	rpc.Register(masterAPI)
