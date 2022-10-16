@@ -41,3 +41,16 @@ func (cs *ChunkMetadataService) AddNewChunkMetadata(chunk ChunkMetadata) {
 
 	cs.Chunks[chunk.ChunkID] = chunk
 }
+
+func (cs *ChunkMetadataService) GetChunkHolders(chunkID ChunkID) []uuid.UUID {
+	cs.Mutex.RLock()
+	defer cs.Mutex.RUnlock()
+
+	chunk, chunkExists := cs.Chunks[chunkID]
+
+	if !chunkExists {
+		return []uuid.UUID{}
+	}
+
+	return chunk.ChunkServers
+}

@@ -1,6 +1,9 @@
 package chunkserver
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type HealthCheckArgs struct {
 }
@@ -20,7 +23,25 @@ type CreateChunkReply struct {
 	ChunkID uuid.UUID
 }
 
+type GrantLeaseArgs struct {
+	ChunkID    uuid.UUID
+	ValidUntil time.Time
+}
+
+type GrantLeaseReply struct {
+}
+
+type IncrementChunkVersionArgs struct {
+	Version int // used to validate
+	ChunkID uuid.UUID
+}
+
+type IncrementChunkVersionReply struct {
+}
+
 type ChunkServer interface {
 	HealthCheck(args *HealthCheckArgs, reply *HealthCheckReply) error
 	CreateChunk(args *CreateChunkRequest, reply *CreateChunkReply) error
+	GrantLease(args *GrantLeaseArgs, reply *GrantLeaseReply) error
+	IncrementChunkVersion(args *IncrementChunkVersionArgs, reply *IncrementChunkVersionReply) error
 }

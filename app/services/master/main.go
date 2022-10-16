@@ -48,6 +48,23 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 	return nil
 }
 
+func (m *MasterAPI) RequestLeaseRenewal(_ *masterRPC.RequestLeaseRenewalArgs, _ *masterRPC.RequestLeaseRenewalReply) error {
+	return nil
+}
+
+func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
+	lease, err := m.Master.RequestWrite(args.ChunkID)
+	if err != nil {
+		return err
+	}
+
+	reply.ChunkID = args.ChunkID
+	reply.ChunkServerID = lease.ChunkServerID
+	reply.ValidUntil = lease.ValidUntil
+
+	return nil
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)

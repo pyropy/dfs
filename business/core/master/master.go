@@ -2,10 +2,12 @@ package master
 
 import (
 	"errors"
+	"log"
+	"math/rand"
+	"net/rpc"
+
 	"github.com/google/uuid"
 	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
-	"log"
-	"net/rpc"
 )
 
 type Master struct {
@@ -15,8 +17,9 @@ type Master struct {
 }
 
 var (
-	ErrFileExists   = errors.New("File exists")
-	ErrFileCreation = errors.New("Failed to create file.")
+	ErrFileExists          = errors.New("File exists")
+	ErrFileCreation        = errors.New("Failed to create file.")
+	ErrChunkHolderNotFound = errors.New("Chunk holder not found.")
 )
 
 func NewMaster() *Master {
@@ -55,7 +58,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 		chunkMetadata = append(chunkMetadata, chunk)
 
 		for _, chunkServer := range chunkServers {
-			err := m.createNewChunk(chunkID, chunkSizeBytes, chunkServer)
+			err := m.createNewChunk(chunkID, chunkSizeBytes, &chunkServer)
 			if err != nil {
 				return nil, nil, ErrFileCreation
 			}
@@ -73,20 +76,70 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 	return &fileMetadata, chunkServerIds, nil
 }
 
-func (m *Master) createNewChunk(id uuid.UUID, size int, chunkServer ChunkServerMetadata) error {
-	client, err := rpc.DialHTTP("tcp", chunkServer.Address)
-	if err != nil {
-		log.Println("error", chunkServer.Address, "unreachable")
-		return err
+func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, error) {
+	chunkServers := m.GetChunkHolders(chunkID)
+	if len(chunkServers) == 0 {
+		return nil, ErrChunkHolderNotFound
 	}
 
+	randomIndex := rand.Intn(len(chunkServers))
+	chunkServerID := chunkServers[randomIndex]
+	chunkServerMetadata := m.GetChunkServerMetadata(chunkServerID)
+	lease := m.GrantLease(chunkID, *chunkServerMetadata)
+
+	err := m.sendLeaseGrant(chunkID, lease, chunkServerMetadata)
+	if err != nil {
+		return nil, err
+	}
+
+	err = m.incrementChunkVersion(chunkID, chunkServerMetadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return lease, nil
+}
+
+func (m *Master) createNewChunk(id uuid.UUID, size int, chunkServer *ChunkServerMetadata) error {
 	args := chunkServerRPC.CreateChunkRequest{
 		ChunkID:   id,
 		ChunkSize: size,
 	}
 
 	reply := chunkServerRPC.CreateChunkReply{}
-	err = client.Call("ChunkServerAPI.CreateChunk", args, &reply)
+	return callChunkServerRPC(chunkServer, "ChunkServerAPI.CreateChunk", args, &reply)
+}
+
+func (m *Master) sendLeaseGrant(chunkID ChunkID, lease *Lease, chunkServer *ChunkServerMetadata) error {
+	args := chunkServerRPC.GrantLeaseArgs{
+		ChunkID:    chunkID,
+		ValidUntil: lease.ValidUntil,
+	}
+
+	reply := chunkServerRPC.GrantLeaseReply{}
+	return callChunkServerRPC(chunkServer, "ChunkServerAPI.GrantLease", args, &reply)
+}
+
+func (m *Master) incrementChunkVersion(chunkID ChunkID, chunkServer *ChunkServerMetadata) error {
+	args := chunkServerRPC.IncrementChunkVersionArgs{
+		ChunkID: chunkID,
+		Version: 0,
+	}
+	reply := chunkServerRPC.IncrementChunkVersionReply{}
+
+	return callChunkServerRPC(chunkServer, "ChunkServerAPI.IncrementChunkVersion", args, &reply)
+}
+
+func callChunkServerRPC(chunkServer *ChunkServerMetadata, method string, args interface{}, reply interface{}) error {
+	client, err := rpc.DialHTTP("tcp", chunkServer.Address)
+	if err != nil {
+		log.Println("error", chunkServer.Address, "unreachable")
+		return err
+	}
+
+	defer client.Close()
+
+	err = client.Call(method, args, reply)
 	if err != nil {
 		log.Println("error", chunkServer.Address, "error", err)
 		return err

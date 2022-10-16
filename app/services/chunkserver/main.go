@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/pyropy/dfs/business/core/chunkserver"
 	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
-	"github.com/pyropy/dfs/business/rpc/master"
 	"log"
 	"net"
 	"net/http"
@@ -47,6 +46,25 @@ func (c *ChunkServerAPI) CreateChunk(request *chunkServerRPC.CreateChunkRequest,
 	return nil
 }
 
+// GrantLease ...
+func (c *ChunkServerAPI) GrantLease(args *chunkServerRPC.GrantLeaseArgs, _ *chunkServerRPC.GrantLeaseReply) error {
+	log.Println("ChunkServerAPI.GrantLease", args)
+
+	err := c.ChunkServer.GrantLease(args.ChunkID, args.ValidUntil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IncrementChunkVersion ...
+func (c *ChunkServerAPI) IncrementChunkVersion(args *chunkServerRPC.IncrementChunkVersionArgs, _ *chunkServerRPC.IncrementChunkVersionReply) error {
+	log.Println("ChunkServerAPI.IncrementChunkVersion", args)
+
+	return c.ChunkServer.IncrementChunkVersion(args.ChunkID, args.Version)
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)
@@ -73,34 +91,19 @@ func run() error {
 	defer log.Println("shutdown", "status", "chunkserver rpc server stopped", listenAddr)
 	go http.Serve(l, nil)
 
-	err = RegisterChunkServer(listenAddr)
+	err = chunkServer.RegisterChunkServer(MasterAddr, listenAddr)
 	if err != nil {
 		log.Println("startup", "error", "failed to RegisterChunkServer chunkserver")
 		return err
 	}
 
+	// Start monitoring lease expiry
+	go chunkServer.MonitorExpiredLeases()
+
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	<-shutdown
 	log.Println("shutdown", "status", "chunkserver rpc server stopping", listenAddr)
-
-	return nil
-}
-
-// RegisterChunkServer registers chunk server instance with Master API
-func RegisterChunkServer(addr string) error {
-	client, err := rpc.DialHTTP("tcp", MasterAddr)
-	if err != nil {
-		log.Println("error", "unreachable")
-		return err
-	}
-
-	var reply master.RegisterReply
-	args := &master.RegisterArgs{Address: addr}
-	err = client.Call("MasterAPI.RegisterChunkServer", args, &reply)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

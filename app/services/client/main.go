@@ -28,4 +28,13 @@ func main() {
 	}
 
 	log.Println(reply)
+
+	reqWriteArgs := master.RequestWriteArgs{
+		ChunkID: reply.Chunks[0],
+	}
+	var reqWriteReply master.RequestLeaseRenewalReply
+	err = client.Call("MasterAPI.RequestWrite", reqWriteArgs, reqWriteReply)
+
+	log.Println(reqWriteReply)
+
 }
