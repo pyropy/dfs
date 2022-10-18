@@ -1,8 +1,10 @@
 package chunkserver
 
 import (
-	"github.com/google/uuid"
+	"log"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 type Chunk struct {
@@ -51,7 +53,6 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 	}
 
 	currentVersion := chunk.Version
-
 	if (currentVersion + 1) != version {
 		return ErrChunkVersionMismatch
 	}

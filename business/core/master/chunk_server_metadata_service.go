@@ -15,11 +15,6 @@ type ChunkServerMetadata struct {
 	Healthy bool
 }
 
-type Lease struct {
-	ValidUntil    time.Time
-	ChunkServerID uuid.UUID
-}
-
 type ChunkServerMetadataService struct {
 	Mutex        sync.RWMutex
 	Leases       map[ChunkID]Lease
@@ -61,19 +56,11 @@ func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.U
 
 	for _, cs := range m.Chunkservers {
 		if cs.ID == chunkServerID {
-			log.Println("found cs")
 			chunkServerMetadata = cs
 		}
 	}
 
 	return &chunkServerMetadata
-}
-
-func (m *ChunkServerMetadataService) GrantLease(chunkID ChunkID, chunkServer ChunkServerMetadata) *Lease {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-
-	return nil
 }
 
 // TODO: Create special service for health checks

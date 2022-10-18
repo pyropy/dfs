@@ -1,6 +1,7 @@
 package chunkserver
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -53,6 +54,7 @@ func (ls *LeaseService) GrantLease(chunkID uuid.UUID, validUntil time.Time) {
 	go ls.MonitorLease(&lease)
 }
 
+// TODO: Make one function that monitors all leases
 // MonitorLease computes duration for validity of the lease and waits for it to expire
 // Once expired, LeaseService requests lease renewal
 func (ls *LeaseService) MonitorLease(lease *Lease) {
@@ -63,5 +65,6 @@ func (ls *LeaseService) MonitorLease(lease *Lease) {
 	// wait for valid for duration
 	<-timer.C
 	// notify chunk server via channel that lease has expired
+	log.Println("lease expired", lease)
 	ls.leaseExpChan <- lease
 }

@@ -44,14 +44,12 @@ func NewChunkServer() *ChunkServer {
 
 func (c *ChunkServer) CreateChunk(id uuid.UUID, version, sizeBytes int) (*Chunk, error) {
 	existingChunk, exists := c.GetChunk(id)
-
 	if exists && existingChunk.Version == version {
 		return nil, ErrChunkAlreadyExists
 	}
 
 	filename := fmt.Sprintf("%s-%d", id, version)
 	filepath := fp.Join("chunks", filename)
-
 	_, err := os.Create(filepath)
 	if err != nil {
 		return nil, err
