@@ -32,8 +32,12 @@ func main() {
 	reqWriteArgs := master.RequestWriteArgs{
 		ChunkID: reply.Chunks[0],
 	}
-	var reqWriteReply master.RequestLeaseRenewalReply
-	err = client.Call("MasterAPI.RequestWrite", reqWriteArgs, reqWriteReply)
+	var reqWriteReply master.RequestWriteReply
+	err = client.Call("MasterAPI.RequestWrite", reqWriteArgs, &reqWriteReply)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
 
 	log.Println(reqWriteReply)
 

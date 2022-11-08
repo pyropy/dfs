@@ -109,7 +109,8 @@ func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, error) {
 	return lease, nil
 }
 
-func (m *Master) RequestLeaseRenewal() {
+func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*Lease, error) {
+	return m.ExtendLease(chunkID, chunkServer)
 }
 
 func (m *Master) createNewChunk(id uuid.UUID, size int, chunkVersion int, chunkServer *ChunkServerMetadata) error {

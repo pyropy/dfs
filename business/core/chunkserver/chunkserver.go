@@ -30,6 +30,7 @@ var (
 	ErrChunkDoesNotExist    = errors.New("Chunk does not exist")
 	ErrChunkAlreadyExists   = errors.New("Chunk already exists")
 	ErrChunkVersionMismatch = errors.New("Chunk version mismatch")
+	ErrChunkLeaseNotGranted = errors.New("Chunk lease not granted")
 )
 
 func NewChunkServer() *ChunkServer {
@@ -103,12 +104,14 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 		return err
 	}
 
-	c.ChunkServerID = c.ChunkServerID
+	c.ChunkServerID = reply.ID
 
 	return nil
 }
 
 func (c *ChunkServer) MonitorExpiredLeases() {
+	go c.MonitorLeases()
+
 	for {
 		select {
 		case lease := <-c.leaseExpChan:
@@ -136,11 +139,17 @@ func (c *ChunkServer) RequestLeaseRenewal(lease *Lease) error {
 		ChunkServerID: c.ChunkServerID,
 	}
 
-	err = client.Call("MasterAPI.RequestLeaseRenewalReply ", args, &reply)
+	err = client.Call("MasterAPI.RequestLeaseRenewal", args, &reply)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	if !reply.Granted {
+		return ErrChunkLeaseNotGranted
+	}
 
+	c.LeaseService.GrantLease(reply.ChunkID, reply.ValidUntil)
+
+	log.Println("info", "chunkServer", "lease granted", reply.ChunkID, reply.ValidUntil)
+	return nil
 }

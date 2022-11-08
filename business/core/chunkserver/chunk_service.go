@@ -1,7 +1,6 @@
 package chunkserver
 
 import (
-	"log"
 	"sync"
 
 	"github.com/google/uuid"
