@@ -15,10 +15,17 @@ type Lease struct {
 
 // Manages leases
 type LeaseService struct {
-	Mutex  sync.RWMutex
+	Mutex sync.RWMutex
+
 	Leases map[uuid.UUID]Lease
 
 	leaseExpChan chan *Lease
+}
+
+func (l *Lease) IsExpired() bool {
+	now := time.Now()
+
+	return !l.ValidUntil.After(now)
 }
 
 func NewLeaseService(leaseExpChan chan *Lease) *LeaseService {
@@ -35,8 +42,7 @@ func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
 		return false
 	}
 
-	now := time.Now()
-	return lease.ValidUntil.After(now)
+	return lease.IsExpired()
 }
 
 // GrantLease grants lease over chunk for period of time
@@ -50,21 +56,22 @@ func (ls *LeaseService) GrantLease(chunkID uuid.UUID, validUntil time.Time) {
 	}
 
 	ls.Leases[chunkID] = lease
-
-	go ls.MonitorLease(&lease)
 }
 
-// TODO: Make one function that monitors all leases
-// MonitorLease computes duration for validity of the lease and waits for it to expire
+// MonitorLeases loops over all leases and checks if they are expired
 // Once expired, LeaseService requests lease renewal
-func (ls *LeaseService) MonitorLease(lease *Lease) {
-	now := time.Now()
-	validDuration := lease.ValidUntil.Sub(now)
-
-	timer := time.NewTimer(validDuration)
-	// wait for valid for duration
-	<-timer.C
-	// notify chunk server via channel that lease has expired
-	log.Println("lease expired", lease)
-	ls.leaseExpChan <- lease
+func (ls *LeaseService) MonitorLeases() {
+	// we never gonna die
+	for {
+		for k := range ls.Leases {
+			lease := ls.Leases[k]
+			if lease.IsExpired() {
+				ls.Mutex.Lock()
+				log.Println("debug", "lease service", "lease expired", lease)
+				delete(ls.Leases, k)
+				ls.leaseExpChan <- &lease
+				ls.Mutex.Unlock()
+			}
+		}
+	}
 }
