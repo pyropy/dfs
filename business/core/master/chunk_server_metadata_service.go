@@ -17,13 +17,13 @@ type ChunkServerMetadata struct {
 
 type ChunkServerMetadataService struct {
 	Mutex        sync.RWMutex
-	Leases       map[ChunkID]Lease
+	Leases       map[uuid.UUID]Lease
 	Chunkservers []ChunkServerMetadata
 }
 
 func NewChunkServerMetadataService() *ChunkServerMetadataService {
 	return &ChunkServerMetadataService{
-		Leases:       map[ChunkID]Lease{},
+		Leases:       map[uuid.UUID]Lease{},
 		Chunkservers: []ChunkServerMetadata{},
 	}
 }

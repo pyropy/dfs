@@ -17,10 +17,13 @@ type CreateChunkRequest struct {
 	ChunkID      uuid.UUID
 	ChunkVersion int
 	ChunkSize    int
+	ChunkIndex   int
 }
 
 type CreateChunkReply struct {
-	ChunkID uuid.UUID
+	ChunkID      uuid.UUID
+	ChunkVersion int
+	ChunkIndex   int
 }
 
 type GrantLeaseArgs struct {

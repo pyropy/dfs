@@ -37,11 +37,14 @@ func (c *ChunkServerAPI) HealthCheck(_ *chunkServerRPC.HealthCheckArgs, reply *c
 // CreateChunk ...
 func (c *ChunkServerAPI) CreateChunk(request *chunkServerRPC.CreateChunkRequest, reply *chunkServerRPC.CreateChunkReply) error {
 	log.Println("ChunkServerAPI.CreateChunk", request)
-	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkVersion, request.ChunkSize)
+	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkIndex, request.ChunkVersion, request.ChunkSize)
 	if err != nil {
 		return err
 	}
+
 	reply.ChunkID = chunk.ID
+	reply.ChunkIndex = chunk.Index
+	reply.ChunkVersion = chunk.Version
 
 	return nil
 }
@@ -96,6 +99,8 @@ func run() error {
 		log.Println("startup", "error", "failed to RegisterChunkServer chunkserver")
 		return err
 	}
+
+	// Start immedty
 
 	// Start monitoring lease expiry
 	go chunkServer.MonitorExpiredLeases()

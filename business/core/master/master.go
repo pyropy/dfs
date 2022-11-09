@@ -7,37 +7,38 @@ import (
 	"net/rpc"
 
 	"github.com/google/uuid"
+	chunkmeta "github.com/pyropy/dfs/business/core/chunk_metadata_service"
+	filemeta "github.com/pyropy/dfs/business/core/file_metadata_service"
 	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
 )
 
 type Master struct {
 	*LeaseService
-	*FileMetadataService
-	*ChunkMetadataService
+	*filemeta.FileMetadataService
+	*chunkmeta.ChunkMetadataService
 	*ChunkServerMetadataService
 }
 
 var (
 	ErrFileExists          = errors.New("File exists")
 	ErrFileCreation        = errors.New("Failed to create file.")
-	ErrChunkNotFound       = errors.New("Chunk not found.")
 	ErrChunkHolderNotFound = errors.New("Chunk holder not found.")
 )
 
 func NewMaster() *Master {
 	return &Master{
 		LeaseService:               NewLeaseService(),
-		FileMetadataService:        NewFileMetadataService(),
-		ChunkMetadataService:       NewChunkMetadataService(),
+		FileMetadataService:        filemeta.NewFileMetadataService(),
+		ChunkMetadataService:       chunkmeta.NewChunkMetadataService(),
 		ChunkServerMetadataService: NewChunkServerMetadataService(),
 	}
 }
 
 // TODO: Add file namespace locks
 // CreateNewFile selects chunk servers and instructs them to create N number of chunks with predefined IDs
-func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkSizeBytes int) (*FileMetadata, []uuid.UUID, error) {
-	var chunkIds []ChunkID
-	var chunkMetadata []ChunkMetadata
+func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkSizeBytes int) (*filemeta.FileMetadata, []uuid.UUID, error) {
+	var chunkIds []uuid.UUID
+	var chunkMetadata []chunkmeta.ChunkMetadata
 	var chunkServerIds []uuid.UUID
 
 	fileExists := m.FileMetadataService.CheckFileExists(filePath)
@@ -47,7 +48,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 
 	chunkVersion := 1
 	chunkServers := m.ChunkServerMetadataService.SelectChunkServers(repFactor)
-	fileMetadata := NewFileMetadata(filePath)
+	fileMetadata := filemeta.NewFileMetadata(filePath)
 	numChunks := (fileSizeBytes + (chunkSizeBytes - 1)) / chunkSizeBytes
 
 	for _, cs := range chunkServers {
@@ -58,7 +59,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 		chunkID := uuid.New()
 		chunkIds = append(chunkIds, chunkID)
 		fileMetadata.Chunks = append(fileMetadata.Chunks, chunkID)
-		chunk := NewChunkMetadata(chunkID, chunkVersion, chunkServerIds)
+		chunk := chunkmeta.NewChunkMetadata(chunkID, i, chunkVersion, chunkServerIds)
 		chunkMetadata = append(chunkMetadata, chunk)
 
 		for _, chunkServer := range chunkServers {
@@ -124,7 +125,7 @@ func (m *Master) createNewChunk(id uuid.UUID, size int, chunkVersion int, chunkS
 	return callChunkServerRPC(chunkServer, "ChunkServerAPI.CreateChunk", args, &reply)
 }
 
-func (m *Master) sendLeaseGrant(chunkID ChunkID, lease *Lease, chunkServer *ChunkServerMetadata) error {
+func (m *Master) sendLeaseGrant(chunkID uuid.UUID, lease *Lease, chunkServer *ChunkServerMetadata) error {
 	args := chunkServerRPC.GrantLeaseArgs{
 		ChunkID:    chunkID,
 		ValidUntil: lease.ValidUntil,
@@ -134,7 +135,7 @@ func (m *Master) sendLeaseGrant(chunkID ChunkID, lease *Lease, chunkServer *Chun
 	return callChunkServerRPC(chunkServer, "ChunkServerAPI.GrantLease", args, &reply)
 }
 
-func (m *Master) incrementChunkVersion(chunkID ChunkID, version int, chunkServer *ChunkServerMetadata) error {
+func (m *Master) incrementChunkVersion(chunkID uuid.UUID, version int, chunkServer *ChunkServerMetadata) error {
 	args := chunkServerRPC.IncrementChunkVersionArgs{
 		ChunkID: chunkID,
 		Version: version,

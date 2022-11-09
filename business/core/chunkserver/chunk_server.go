@@ -2,11 +2,8 @@ package chunkserver
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/rpc"
-	"os"
-	fp "path/filepath"
 	"sync"
 	"time"
 
@@ -43,33 +40,25 @@ func NewChunkServer() *ChunkServer {
 	}
 }
 
-func (c *ChunkServer) CreateChunk(id uuid.UUID, version, sizeBytes int) (*Chunk, error) {
+func (c *ChunkServer) CreateChunk(id uuid.UUID, index, version, sizeBytes int) (*Chunk, error) {
 	existingChunk, exists := c.GetChunk(id)
 	if exists && existingChunk.Version == version {
 		return nil, ErrChunkAlreadyExists
 	}
 
-	filename := fmt.Sprintf("%s-%d", id, version)
-	filepath := fp.Join("chunks", filename)
-	_, err := os.Create(filepath)
+	chunk, err := c.ChunkService.CreateChunk(id, index, version)
 	if err != nil {
 		return nil, err
 	}
 
-	err = os.Truncate(filepath, int64(sizeBytes))
+	c.AddChunk(*chunk)
+
+	err = c.ChunkService.TruncateChunk(id, sizeBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	chunk := Chunk{
-		ID:      id,
-		Version: version,
-		Path:    filepath,
-	}
-
-	c.AddChunk(chunk)
-
-	return &chunk, nil
+	return chunk, nil
 }
 
 func (c *ChunkServer) GrantLease(chunkID uuid.UUID, validUntil time.Time) error {
@@ -122,7 +111,6 @@ func (c *ChunkServer) MonitorExpiredLeases() {
 		default:
 		}
 	}
-
 }
 
 // RequestLeaseRenewal requests renewal for given lease from master

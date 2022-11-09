@@ -1,4 +1,4 @@
-package master
+package filemetadataservice
 
 import (
 	"sync"
@@ -9,7 +9,7 @@ import (
 type FileMetadata struct {
 	ID     uuid.UUID
 	Path   string
-	Chunks []ChunkID
+	Chunks []uuid.UUID
 }
 
 type FilePath = string
@@ -33,17 +33,17 @@ func (f *FileMetadataService) CheckFileExists(filePath FilePath) bool {
 	return fileExists
 }
 
-func (f *FileMetadataService) AddNewFileMetadata(filePath FilePath, metadat FileMetadata) {
+func (f *FileMetadataService) AddNewFileMetadata(filePath FilePath, metadata FileMetadata) {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
-	f.Files[filePath] = metadat
+	f.Files[filePath] = metadata
 }
 
 func NewFileMetadata(path string) FileMetadata {
 	return FileMetadata{
 		ID:     uuid.New(),
 		Path:   path,
-		Chunks: []ChunkID{},
+		Chunks: []uuid.UUID{},
 	}
 }
