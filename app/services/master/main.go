@@ -48,6 +48,37 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 	return nil
 }
 
+func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
+	log.Println("RequestLeaseRenewal", args)
+	chs := master.ChunkServerMetadata{
+		ID: args.ChunkServerID,
+	}
+
+	lease, err := m.Master.RequestLeaseRenewal(args.ChunkID, &chs)
+	if err != nil {
+		return err
+	}
+
+	reply.Granted = true
+	reply.ChunkID = lease.ChunkID
+	reply.ValidUntil = lease.ValidUntil
+	return nil
+}
+
+func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
+	log.Println("RequestWrite", args)
+	lease, err := m.Master.RequestWrite(args.ChunkID)
+	if err != nil {
+		return err
+	}
+
+	reply.ChunkID = args.ChunkID
+	reply.ChunkServerID = lease.ChunkServerID
+	reply.ValidUntil = lease.ValidUntil
+
+	return nil
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)

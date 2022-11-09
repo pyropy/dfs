@@ -17,11 +17,13 @@ type ChunkServerMetadata struct {
 
 type ChunkServerMetadataService struct {
 	Mutex        sync.RWMutex
+	Leases       map[ChunkID]Lease
 	Chunkservers []ChunkServerMetadata
 }
 
 func NewChunkServerMetadataService() *ChunkServerMetadataService {
 	return &ChunkServerMetadataService{
+		Leases:       map[ChunkID]Lease{},
 		Chunkservers: []ChunkServerMetadata{},
 	}
 }
@@ -44,6 +46,21 @@ func (m *ChunkServerMetadataService) SelectChunkServers(num int) []ChunkServerMe
 	}
 
 	return m.Chunkservers[:num-1]
+}
+
+func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.UUID) *ChunkServerMetadata {
+	var chunkServerMetadata ChunkServerMetadata
+
+	m.Mutex.RLock()
+	defer m.Mutex.RUnlock()
+
+	for _, cs := range m.Chunkservers {
+		if cs.ID == chunkServerID {
+			chunkServerMetadata = cs
+		}
+	}
+
+	return &chunkServerMetadata
 }
 
 // TODO: Create special service for health checks
