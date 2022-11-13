@@ -1,7 +1,9 @@
 package chunkserver
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	fp "path/filepath"
 	"sync"
@@ -9,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: Link chunk to file
 type Chunk struct {
 	ID       uuid.UUID
 	Version  int
@@ -21,6 +24,10 @@ type ChunkService struct {
 	Mutex  sync.RWMutex
 	Chunks map[uuid.UUID]Chunk
 }
+
+var (
+	ErrChunkDoesNotExist = errors.New("Chunk does not exist")
+)
 
 func NewChunkService() *ChunkService {
 	return &ChunkService{
@@ -72,13 +79,18 @@ func (cs *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte
 	return nil, nil
 }
 
-func (cs *ChunkService) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, error) {
+func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset int, version int) (int, error) {
 	chunk, exists := cs.GetChunk(chunkID)
 	if !exists {
 		return 0, ErrChunkDoesNotExist
 	}
 
-	f, err := os.OpenFile(chunk.Path, os.O_APPEND, 0644)
+	if chunk.Version != version {
+		log.Println("error", "chunkService", "chunk version missmatch", "chunkID", chunkID, "version", chunk.Version, "versionGiven", version)
+		return 0, ErrChunkVersionMismatch
+	}
+
+	f, err := os.OpenFile(chunk.Path, os.O_RDWR, 0644)
 	if err != nil {
 		return 0, err
 	}

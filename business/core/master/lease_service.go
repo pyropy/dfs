@@ -1,15 +1,15 @@
 package master
 
 import (
-	"sync"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 var (
-	ErrLeaseNotFound = errors.New("Lease not found")
+	ErrLeaseNotFound           = errors.New("Lease not found")
 	ErrLeaseNotPreviouslyOwned = errors.New("Failed to extend lease. Chunk Server was not previous owner of the lease")
 )
 
@@ -69,7 +69,6 @@ func (ls *LeaseService) ExtendLease(chunkID uuid.UUID, chunkServer *ChunkServerM
 	if !leaseExists {
 		return nil, ErrLeaseNotFound
 	}
-
 
 	if prevLease.ChunkServerID != chunkServer.ID {
 		return nil, ErrLeaseNotPreviouslyOwned

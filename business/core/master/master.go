@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	chunkmeta "github.com/pyropy/dfs/business/core/chunk_metadata_service"
+	"github.com/pyropy/dfs/business/core/constants"
 	filemeta "github.com/pyropy/dfs/business/core/file_metadata_service"
 	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
 )
@@ -46,7 +47,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 		return nil, chunkIds, ErrFileExists
 	}
 
-	chunkVersion := 1
+	chunkVersion := constants.INITIAL_CHUNK_VERSION
 	chunkServers := m.ChunkServerMetadataService.SelectChunkServers(repFactor)
 	fileMetadata := filemeta.NewFileMetadata(filePath)
 	numChunks := (fileSizeBytes + (chunkSizeBytes - 1)) / chunkSizeBytes
@@ -81,15 +82,15 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 	return &fileMetadata, chunkServerIds, nil
 }
 
-func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, error) {
+func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, int, error) {
 	chunkServers := m.GetChunkHolders(chunkID)
 	if len(chunkServers) == 0 {
-		return nil, ErrChunkHolderNotFound
+		return nil, 0, ErrChunkHolderNotFound
 	}
 
 	chunkVersion, err := m.IncrementChunkVersion(chunkID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	randomIndex := rand.Intn(len(chunkServers))
@@ -99,15 +100,20 @@ func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, error) {
 
 	err = m.sendLeaseGrant(chunkID, lease, chunkServerMetadata)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	err = m.incrementChunkVersion(chunkID, chunkVersion, chunkServerMetadata)
-	if err != nil {
-		return nil, err
+	for _, chunkServerID := range chunkServers {
+		chunkServerMetadata := m.GetChunkServerMetadata(chunkServerID)
+		// TODO: Retry if fails
+		err := m.incrementChunkVersion(chunkID, chunkVersion, chunkServerMetadata)
+
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
-	return lease, nil
+	return lease, chunkVersion, nil
 }
 
 func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*Lease, error) {

@@ -50,8 +50,15 @@ type RequestWriteArgs struct {
 	ChunkID uuid.UUID
 }
 
+type ChunkServer struct {
+	ID      uuid.UUID
+	Address string
+}
+
 type RequestWriteReply struct {
-	ChunkID       uuid.UUID
-	ChunkServerID uuid.UUID
-	ValidUntil    time.Time
+	ChunkID              uuid.UUID
+	Version              int
+	PrimaryChunkServerID uuid.UUID
+	ValidUntil           time.Time
+	ChunkServers         []ChunkServer
 }

@@ -42,9 +42,50 @@ type IncrementChunkVersionArgs struct {
 type IncrementChunkVersionReply struct {
 }
 
-type ChunkServer interface {
+type TransferDataArgs struct {
+	CheckSum int
+	Data     []byte
+}
+
+type TransferDataReply struct {
+	NumBytesRecieved int
+}
+
+type ChunkServer struct {
+	ID      uuid.UUID
+	Address string
+}
+
+type WriteChunkArgs struct {
+	ChunkID  uuid.UUID
+	CheckSum int
+	Offset   int
+	Version  int
+
+	ChunkServers []ChunkServer
+}
+
+type WriteChunkReply struct {
+	BytesWritten int
+}
+
+type ApplyMigrationArgs struct {
+	ChunkID  uuid.UUID
+	CheckSum int
+	Offset   int
+	Version  int
+}
+
+type ApplyMigrationReply struct {
+	BytesWritten int
+}
+
+type IChunkServer interface {
 	HealthCheck(args *HealthCheckArgs, reply *HealthCheckReply) error
 	CreateChunk(args *CreateChunkRequest, reply *CreateChunkReply) error
 	GrantLease(args *GrantLeaseArgs, reply *GrantLeaseReply) error
 	IncrementChunkVersion(args *IncrementChunkVersionArgs, reply *IncrementChunkVersionReply) error
+	TransferData(args *TransferDataArgs, reply *TransferDataReply) error
+	WriteChunk(args *WriteChunkArgs, reply *WriteChunkReply) error
+	ApplyMigration(args *ApplyMigrationArgs, reply *ApplyMigrationReply) error
 }

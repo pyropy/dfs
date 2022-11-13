@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/pyropy/dfs/business/core/master"
-	masterRPC "github.com/pyropy/dfs/business/rpc/master"
 	"log"
 	"net"
 	"net/http"
@@ -10,11 +8,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/pyropy/dfs/business/core/constants"
+	"github.com/pyropy/dfs/business/core/master"
+	masterRPC "github.com/pyropy/dfs/business/rpc/master"
 )
 
 var (
-	ReplicationFactor     = 3
-	chunkSizeBytes    int = 64 * 10e+6
+	ReplicationFactor = 3
+
+// 	chunkSizeBytes    int = 64 * 10e+6
 )
 
 type MasterAPI struct {
@@ -38,7 +41,7 @@ func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *mas
 
 func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
 	log.Println("CreateNewFile", args)
-	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, chunkSizeBytes)
+	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, constants.CHUNK_SIZE_BYTES)
 	if err != nil {
 		return err
 	}
@@ -67,14 +70,27 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 
 func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
 	log.Println("RequestWrite", args)
-	lease, err := m.Master.RequestWrite(args.ChunkID)
+	chunkServers := []masterRPC.ChunkServer{}
+	lease, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
 	if err != nil {
 		return err
 	}
 
+	chunkHoldersIDs := m.Master.GetChunkHolders(args.ChunkID)
+	for _, chunkHolderID := range chunkHoldersIDs {
+		chunkHolder := m.Master.GetChunkServerMetadata(chunkHolderID)
+		chunkServer := masterRPC.ChunkServer{
+			ID:      chunkHolder.ID,
+			Address: chunkHolder.Address,
+		}
+		chunkServers = append(chunkServers, chunkServer)
+	}
+
 	reply.ChunkID = args.ChunkID
-	reply.ChunkServerID = lease.ChunkServerID
+	reply.PrimaryChunkServerID = lease.ChunkServerID
 	reply.ValidUntil = lease.ValidUntil
+	reply.ChunkServers = chunkServers
+	reply.Version = chunkVersion
 
 	return nil
 }
