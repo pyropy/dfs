@@ -103,16 +103,6 @@ func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset i
 	return bytesWritten, nil
 }
 
-func (cs *ChunkService) TruncateChunk(chunkID uuid.UUID, size int) error {
-	chunk, exists := cs.GetChunk(chunkID)
-	if !exists {
-		return ErrChunkDoesNotExist
-	}
-
-	err := os.Truncate(chunk.Path, int64(size))
-	return err
-}
-
 // IncrementChunkVersion increments chunk version number but also checks if
 // there is a mismatch between version given by master and local chunk version
 func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) error {

@@ -57,11 +57,6 @@ func (c *ChunkServer) CreateChunk(id uuid.UUID, index, version, sizeBytes int) (
 
 	c.AddChunk(*chunk)
 
-	err = c.ChunkService.TruncateChunk(id, sizeBytes)
-	if err != nil {
-		return nil, err
-	}
-
 	return chunk, nil
 }
 
