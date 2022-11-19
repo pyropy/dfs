@@ -1,4 +1,4 @@
-package master
+package filemetadataservice
 
 import (
 	"sync"
@@ -9,11 +9,13 @@ import (
 type FileMetadata struct {
 	ID     uuid.UUID
 	Path   string
-	Chunks []ChunkID
+	Chunks []uuid.UUID
 }
 
 type FilePath = string
 
+// TODO: Implement some kinda Tree Structure
+// to hold file/dir metadata so users can traverse filesystem
 type FileMetadataService struct {
 	Mutex sync.RWMutex
 	Files map[FilePath]FileMetadata
@@ -25,6 +27,18 @@ func NewFileMetadataService() *FileMetadataService {
 	}
 }
 
+func (f *FileMetadataService) Get(filePath string) *FileMetadata {
+	f.Mutex.RLock()
+	defer f.Mutex.RUnlock()
+
+	file, exists := f.Files[filePath]
+	if !exists {
+		return nil
+	}
+
+	return &file
+}
+
 func (f *FileMetadataService) CheckFileExists(filePath FilePath) bool {
 	f.Mutex.RLock()
 	defer f.Mutex.RUnlock()
@@ -33,17 +47,17 @@ func (f *FileMetadataService) CheckFileExists(filePath FilePath) bool {
 	return fileExists
 }
 
-func (f *FileMetadataService) AddNewFileMetadata(filePath FilePath, metadat FileMetadata) {
+func (f *FileMetadataService) AddNewFileMetadata(filePath FilePath, metadata FileMetadata) {
 	f.Mutex.Lock()
 	defer f.Mutex.Unlock()
 
-	f.Files[filePath] = metadat
+	f.Files[filePath] = metadata
 }
 
 func NewFileMetadata(path string) FileMetadata {
 	return FileMetadata{
 		ID:     uuid.New(),
 		Path:   path,
-		Chunks: []ChunkID{},
+		Chunks: []uuid.UUID{},
 	}
 }

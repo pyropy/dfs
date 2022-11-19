@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/pyropy/dfs/business/core/chunkserver"
-	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
+	"github.com/pyropy/dfs/core/chunkserver"
+	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 	"log"
 	"net"
 	"net/http"
@@ -37,11 +37,14 @@ func (c *ChunkServerAPI) HealthCheck(_ *chunkServerRPC.HealthCheckArgs, reply *c
 // CreateChunk ...
 func (c *ChunkServerAPI) CreateChunk(request *chunkServerRPC.CreateChunkRequest, reply *chunkServerRPC.CreateChunkReply) error {
 	log.Println("ChunkServerAPI.CreateChunk", request)
-	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkVersion, request.ChunkSize)
+	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkIndex, request.ChunkVersion, request.ChunkSize)
 	if err != nil {
 		return err
 	}
+
 	reply.ChunkID = chunk.ID
+	reply.ChunkIndex = chunk.Index
+	reply.ChunkVersion = chunk.Version
 
 	return nil
 }
@@ -63,6 +66,44 @@ func (c *ChunkServerAPI) IncrementChunkVersion(args *chunkServerRPC.IncrementChu
 	log.Println("ChunkServerAPI.IncrementChunkVersion", args)
 
 	return c.ChunkServer.IncrementChunkVersion(args.ChunkID, args.Version)
+}
+
+func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, reply *chunkServerRPC.TransferDataReply) error {
+	log.Println("ChunkServerAPI.TransferData", args.CheckSum)
+
+	err := c.ChunkServer.RecieveBytes(args.Data, args.CheckSum)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ChunkServerAPI) WriteChunk(args *chunkServerRPC.WriteChunkArgs, reply *chunkServerRPC.WriteChunkReply) error {
+	log.Println("ChunkServerAPI.WriteChunk", args)
+
+	bytesWritten, err := c.ChunkServer.WriteChunk(args.ChunkID, args.CheckSum, args.Offset, args.Version, args.ChunkServers)
+	if err != nil {
+		return err
+	}
+
+	reply.BytesWritten = bytesWritten
+
+	return nil
+}
+
+func (c *ChunkServerAPI) ApplyMigration(args *chunkServerRPC.ApplyMigrationArgs, reply *chunkServerRPC.ApplyMigrationReply) error {
+	log.Println("ChunkServerAPI.ApplyMigration", args)
+	chunkServers := []chunkServerRPC.ChunkServer{}
+
+	bytesWritten, err := c.ChunkServer.WriteChunk(args.ChunkID, args.CheckSum, args.Offset, args.Version, chunkServers)
+	if err != nil {
+		return err
+	}
+
+	reply.BytesWritten = bytesWritten
+
+	return nil
 }
 
 func main() {

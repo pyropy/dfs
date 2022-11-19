@@ -1,36 +1,32 @@
-package master
+package chunkmetadataservice
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/google/uuid"
 )
 
-type ChunkID = uuid.UUID
-
-type ChunkMetadata struct {
-	ChunkID      uuid.UUID
-	Version      int
-	ChunkServers []uuid.UUID
-	Lease        uuid.UUID
-	Checksum     int
-}
+var (
+	ErrChunkNotFound = errors.New("Chunk not found.")
+)
 
 type ChunkMetadataService struct {
 	Mutex  sync.RWMutex
-	Chunks map[ChunkID]ChunkMetadata
+	Chunks map[uuid.UUID]ChunkMetadata
 }
 
 func NewChunkMetadataService() *ChunkMetadataService {
 	return &ChunkMetadataService{
-		Chunks: map[ChunkID]ChunkMetadata{},
+		Chunks: map[uuid.UUID]ChunkMetadata{},
 	}
 }
 
-func NewChunkMetadata(chunkID uuid.UUID, version int, chunkServerIds []uuid.UUID) ChunkMetadata {
+func NewChunkMetadata(chunkID uuid.UUID, index, version int, chunkServerIds []uuid.UUID) ChunkMetadata {
 	return ChunkMetadata{
 		ChunkID:      chunkID,
-		Version:      1,
+		Index:        index,
+		Version:      version,
 		ChunkServers: chunkServerIds,
 	}
 }
@@ -42,7 +38,7 @@ func (cs *ChunkMetadataService) AddNewChunkMetadata(chunk ChunkMetadata) {
 	cs.Chunks[chunk.ChunkID] = chunk
 }
 
-func (cs *ChunkMetadataService) GetChunkHolders(chunkID ChunkID) []uuid.UUID {
+func (cs *ChunkMetadataService) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
 	cs.Mutex.RLock()
 	defer cs.Mutex.RUnlock()
 
@@ -55,7 +51,7 @@ func (cs *ChunkMetadataService) GetChunkHolders(chunkID ChunkID) []uuid.UUID {
 	return chunk.ChunkServers
 }
 
-func (cs *ChunkMetadataService) GetChunk(chunkID ChunkID) (*ChunkMetadata, error) {
+func (cs *ChunkMetadataService) GetChunk(chunkID uuid.UUID) (*ChunkMetadata, error) {
 	cs.Mutex.RLock()
 	defer cs.Mutex.RUnlock()
 
@@ -67,7 +63,7 @@ func (cs *ChunkMetadataService) GetChunk(chunkID ChunkID) (*ChunkMetadata, error
 	return &chunk, nil
 }
 
-func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID ChunkID) (int, error) {
+func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, error) {
 	cs.Mutex.Lock()
 	defer cs.Mutex.Unlock()
 

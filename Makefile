@@ -1,6 +1,6 @@
-all: clean build-master build-chunkserver
+all: clean build-master build-chunkserver build-client
 
-clean: clean-master clean-chunkserver
+clean: clean-master clean-chunkserver clean-client
 
 clean-master:
 	rm -f ./master
@@ -8,20 +8,26 @@ clean-master:
 clean-chunkserver:
 	rm -f ./chunkserver
 
+clean-client:
+	rm -f ./client
+
 run-master:
-	go run app/services/master/main.go
+	go run cmd/master/main.go
 
 run-client:
-	go run app/services/client/main.go
+	go run cmd/client/main.go
 
 run-chunkserver:
-	go run app/services/chunkserver/main.go
+	go run cmd/chunkserver/main.go
 
 build-master:
-	go build -o master app/services/master/main.go
+	go build -o master cmd/master/main.go
 
 build-chunkserver:
-	go build -o chunkserver app/services/chunkserver/main.go
+	go build -o chunkserver cmd/chunkserver/main.go
+
+build-client:
+	go build -o client cmd/client/main.go
 
 tidy:
 	go mod tidy

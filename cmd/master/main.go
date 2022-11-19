@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/pyropy/dfs/business/core/master"
-	masterRPC "github.com/pyropy/dfs/business/rpc/master"
+	"github.com/pyropy/dfs/core/constants"
+	master2 "github.com/pyropy/dfs/core/master"
+	masterRPC "github.com/pyropy/dfs/rpc/master"
 	"log"
 	"net"
 	"net/http"
@@ -12,16 +13,11 @@ import (
 	"syscall"
 )
 
-var (
-	ReplicationFactor     = 3
-	chunkSizeBytes    int = 64 * 10e+6
-)
-
 type MasterAPI struct {
-	Master *master.Master
+	Master *master2.Master
 }
 
-func NewMasterAPI(master *master.Master) *MasterAPI {
+func NewMasterAPI(master *master2.Master) *MasterAPI {
 	return &MasterAPI{
 		Master: master,
 	}
@@ -38,7 +34,7 @@ func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *mas
 
 func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
 	log.Println("CreateNewFile", args)
-	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, chunkSizeBytes)
+	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, constants.REPLICATION_FACTOR, constants.CHUNK_SIZE_BYTES)
 	if err != nil {
 		return err
 	}
@@ -50,7 +46,7 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 
 func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
 	log.Println("RequestLeaseRenewal", args)
-	chs := master.ChunkServerMetadata{
+	chs := master2.ChunkServerMetadata{
 		ID: args.ChunkServerID,
 	}
 
@@ -67,14 +63,27 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 
 func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
 	log.Println("RequestWrite", args)
-	lease, err := m.Master.RequestWrite(args.ChunkID)
+	chunkServers := []masterRPC.ChunkServer{}
+	lease, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
 	if err != nil {
 		return err
 	}
 
+	chunkHoldersIDs := m.Master.GetChunkHolders(args.ChunkID)
+	for _, chunkHolderID := range chunkHoldersIDs {
+		chunkHolder := m.Master.GetChunkServerMetadata(chunkHolderID)
+		chunkServer := masterRPC.ChunkServer{
+			ID:      chunkHolder.ID,
+			Address: chunkHolder.Address,
+		}
+		chunkServers = append(chunkServers, chunkServer)
+	}
+
 	reply.ChunkID = args.ChunkID
-	reply.ChunkServerID = lease.ChunkServerID
+	reply.PrimaryChunkServerID = lease.ChunkServerID
 	reply.ValidUntil = lease.ValidUntil
+	reply.ChunkServers = chunkServers
+	reply.Version = chunkVersion
 
 	return nil
 }
@@ -86,7 +95,7 @@ func main() {
 }
 
 func run() error {
-	master := master.NewMaster()
+	master := master2.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
 	rpc.Register(masterAPI)
