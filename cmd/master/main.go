@@ -13,12 +13,6 @@ import (
 	"syscall"
 )
 
-var (
-	ReplicationFactor = 3
-
-	// 	chunkSizeBytes    int = 64 * 10e+6
-)
-
 type MasterAPI struct {
 	Master *master2.Master
 }
@@ -40,7 +34,7 @@ func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *mas
 
 func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
 	log.Println("CreateNewFile", args)
-	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, ReplicationFactor, constants.CHUNK_SIZE_BYTES)
+	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, constants.REPLICATION_FACTOR, constants.CHUNK_SIZE_BYTES)
 	if err != nil {
 		return err
 	}
