@@ -64,7 +64,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 		chunkMetadata = append(chunkMetadata, chunk)
 
 		for _, chunkServer := range chunkServers {
-			err := m.createNewChunk(chunkID, chunkSizeBytes, chunkVersion, &chunkServer)
+			err := m.createNewChunk(chunkID, filePath, chunkSizeBytes, chunkVersion, &chunkServer)
 			if err != nil {
 				return nil, nil, ErrFileCreation
 			}
@@ -120,11 +120,12 @@ func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServer
 	return m.ExtendLease(chunkID, chunkServer)
 }
 
-func (m *Master) createNewChunk(id uuid.UUID, size int, chunkVersion int, chunkServer *ChunkServerMetadata) error {
+func (m *Master) createNewChunk(id uuid.UUID, filePath string, size int, chunkVersion int, chunkServer *ChunkServerMetadata) error {
 	args := chunkServerRPC.CreateChunkRequest{
 		ChunkID:      id,
 		ChunkSize:    size,
 		ChunkVersion: chunkVersion,
+		FilePath:     filePath,
 	}
 
 	reply := chunkServerRPC.CreateChunkReply{}

@@ -2,9 +2,6 @@ package master
 
 import (
 	"github.com/google/uuid"
-	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
-	"log"
-	"net/rpc"
 	"sync"
 	"time"
 )
@@ -66,41 +63,28 @@ func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.U
 // TODO: Create special service for health checks
 func (m *ChunkServerMetadataService) StartHealthCheckService() {
 	ticker := time.NewTicker(30 * time.Second)
-
-	checkHealth := func(i int) {
-		chunkServer := m.Chunkservers[i]
-		client, err := rpc.DialHTTP("tcp", chunkServer.Address)
-		if err != nil {
-			log.Println("error", chunkServer.Address, "unreachable")
-			m.Chunkservers[i].Healthy = false
-			return
-		}
-
-		defer client.Close()
-
-		var reply chunkServerRPC.HealthCheckReply
-		args := &chunkServerRPC.HealthCheckArgs{}
-		err = client.Call("ChunkServerAPI.HealthCheck", args, &reply)
-		if err != nil {
-			log.Println("error", chunkServer.Address, "error", err)
-			m.Chunkservers[i].Healthy = false
-			return
-		}
-
-		if reply.Status < 299 {
-			m.Chunkservers[i].Healthy = true
-			return
-		}
-
-		m.Chunkservers[i].Healthy = false
-	}
+	unhealthyChan := make(chan uuid.UUID)
 
 	for {
 		select {
 		case _ = <-ticker.C:
 			for i := 0; i < len(m.Chunkservers); i++ {
-				go checkHealth(i)
+				cs := m.Chunkservers[i]
+				go HealthCheck(cs, unhealthyChan)
 			}
+		case unhealthyChunkServerID := <-unhealthyChan:
+			m.MarkUnhealthy(unhealthyChunkServerID)
+		}
+	}
+}
+
+func (m *ChunkServerMetadataService) MarkUnhealthy(chunkServerID uuid.UUID) {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	for i, cs := range m.Chunkservers {
+		if cs.ID == chunkServerID {
+			m.Chunkservers[i].Healthy = false
 		}
 	}
 }

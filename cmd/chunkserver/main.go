@@ -37,7 +37,7 @@ func (c *ChunkServerAPI) HealthCheck(_ *chunkServerRPC.HealthCheckArgs, reply *c
 // CreateChunk ...
 func (c *ChunkServerAPI) CreateChunk(request *chunkServerRPC.CreateChunkRequest, reply *chunkServerRPC.CreateChunkReply) error {
 	log.Println("ChunkServerAPI.CreateChunk", request)
-	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.ChunkIndex, request.ChunkVersion, request.ChunkSize)
+	chunk, err := c.ChunkServer.CreateChunk(request.ChunkID, request.FilePath, request.ChunkIndex, request.ChunkVersion, request.ChunkSize)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (c *ChunkServerAPI) IncrementChunkVersion(args *chunkServerRPC.IncrementChu
 func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, reply *chunkServerRPC.TransferDataReply) error {
 	log.Println("ChunkServerAPI.TransferData", args.CheckSum)
 
-	err := c.ChunkServer.RecieveBytes(args.Data, args.CheckSum)
+	err := c.ChunkServer.ReceiveBytes(args.Data, args.CheckSum)
 	if err != nil {
 		return err
 	}

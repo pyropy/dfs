@@ -18,6 +18,7 @@ type CreateChunkRequest struct {
 	ChunkVersion int
 	ChunkSize    int
 	ChunkIndex   int
+	FilePath     string
 }
 
 type CreateChunkReply struct {

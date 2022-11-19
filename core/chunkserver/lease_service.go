@@ -37,6 +37,9 @@ func NewLeaseService(leaseExpChan chan *Lease) *LeaseService {
 
 // HaveLease checks if chunk servers has lease over chunk for given chunk ID
 func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
+	ls.Mutex.RLock()
+	defer ls.Mutex.RUnlock()
+
 	lease, leaseExists := ls.Leases[chunkID]
 	if !leaseExists {
 		return false

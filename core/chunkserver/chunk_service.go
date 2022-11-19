@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: Link chunk to file
 type Chunk struct {
 	ID       uuid.UUID
 	Version  int
-	Path     string // disk path
+	Path     string // chunk path on disk
+	FilePath string // file path on disk
 	Checksum int
 	Index    int
 }
@@ -35,25 +35,36 @@ func NewChunkService() *ChunkService {
 	}
 }
 
-func GetChunkPath(id uuid.UUID, index, version int) string {
-	filename := fmt.Sprintf("%s-%d-%d.chunk", id, index, version)
-	filepath := fp.Join("chunks", filename)
+func GetChunkFilename(id uuid.UUID, index, version int) string {
+	return fmt.Sprintf("%s-%d-%d.chunk", id, index, version)
+}
+
+func GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
+	filename := GetChunkFilename(id, index, version)
+	filepath := fp.Join("chunks", filePath, filename)
 
 	return filepath
 }
 
-func (cs *ChunkService) CreateChunk(id uuid.UUID, index, version int) (*Chunk, error) {
-	filepath := GetChunkPath(id, index, version)
-	_, err := os.Create(filepath)
+func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*Chunk, error) {
+	// create chunks parent path dir
+	chunksParentPath := fp.Join("chunks", filePath)
+	err := os.MkdirAll(chunksParentPath, 0750)
+	if err != nil && !os.IsExist(err) {
+		log.Fatal(err)
+	}
 
+	chunkPath := GetChunkPath(id, filePath, index, version)
+	_, err = os.Create(chunkPath)
 	if err != nil {
 		return nil, err
 	}
 
 	chunk := Chunk{
-		ID:      id,
-		Version: version,
-		Path:    filepath,
+		ID:       id,
+		Version:  version,
+		Path:     chunkPath,
+		FilePath: filePath,
 	}
 
 	return &chunk, nil
@@ -114,8 +125,11 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 		return ErrChunkDoesNotExist
 	}
 
-	newPath := GetChunkPath(chunk.ID, chunk.Index, version)
-	os.Rename(chunk.Path, newPath)
+	newPath := GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
+	err := os.Rename(chunk.Path, newPath)
+	if err != nil {
+		return err
+	}
 
 	currentVersion := chunk.Version
 	if (currentVersion + 1) != version {

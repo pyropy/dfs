@@ -44,13 +44,13 @@ func NewChunkServer() *ChunkServer {
 	}
 }
 
-func (c *ChunkServer) CreateChunk(id uuid.UUID, index, version, sizeBytes int) (*Chunk, error) {
+func (c *ChunkServer) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*Chunk, error) {
 	existingChunk, exists := c.GetChunk(id)
 	if exists && existingChunk.Version == version {
 		return nil, ErrChunkAlreadyExists
 	}
 
-	chunk, err := c.ChunkService.CreateChunk(id, index, version)
+	chunk, err := c.ChunkService.CreateChunk(id, filePath, index, version, size)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +61,11 @@ func (c *ChunkServer) CreateChunk(id uuid.UUID, index, version, sizeBytes int) (
 }
 
 func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, version int, chunkHolders []rpcChunkServer.ChunkServer) (int, error) {
+	_, chunkExists := c.ChunkService.GetChunk(chunkID)
+	if !chunkExists {
+		return 0, ErrChunkDoesNotExist
+	}
+
 	data, exists := c.LRU.Get(checksum)
 	if !exists {
 		return 0, ErrDataNotFoundInCache
@@ -102,7 +107,7 @@ func (c *ChunkServer) GrantLease(chunkID uuid.UUID, validUntil time.Time) error 
 	return nil
 }
 
-func (c *ChunkServer) RecieveBytes(data []byte, checksum int) error {
+func (c *ChunkServer) ReceiveBytes(data []byte, checksum int) error {
 	// TODO: Check checksum
 	c.LRU.Put(checksum, data)
 
