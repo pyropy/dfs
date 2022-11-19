@@ -76,6 +76,8 @@ func (m *ChunkServerMetadataService) StartHealthCheckService() {
 			return
 		}
 
+		defer client.Close()
+
 		var reply chunkServerRPC.HealthCheckReply
 		args := &chunkServerRPC.HealthCheckArgs{}
 		err = client.Call("ChunkServerAPI.HealthCheck", args, &reply)
