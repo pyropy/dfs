@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/pyropy/dfs/business/core/chunkserver"
-	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
+	"github.com/pyropy/dfs/core/chunkserver"
+	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 	"log"
 	"net"
 	"net/http"
@@ -137,8 +137,6 @@ func run() error {
 		log.Println("startup", "error", "failed to RegisterChunkServer chunkserver")
 		return err
 	}
-
-	// Start immedty
 
 	// Start monitoring lease expiry
 	go chunkServer.MonitorExpiredLeases()

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/pyropy/dfs/core/constants"
+	master2 "github.com/pyropy/dfs/core/master"
+	masterRPC "github.com/pyropy/dfs/rpc/master"
 	"log"
 	"net"
 	"net/http"
@@ -8,23 +11,19 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/pyropy/dfs/business/core/constants"
-	"github.com/pyropy/dfs/business/core/master"
-	masterRPC "github.com/pyropy/dfs/business/rpc/master"
 )
 
 var (
 	ReplicationFactor = 3
 
-// 	chunkSizeBytes    int = 64 * 10e+6
+	// 	chunkSizeBytes    int = 64 * 10e+6
 )
 
 type MasterAPI struct {
-	Master *master.Master
+	Master *master2.Master
 }
 
-func NewMasterAPI(master *master.Master) *MasterAPI {
+func NewMasterAPI(master *master2.Master) *MasterAPI {
 	return &MasterAPI{
 		Master: master,
 	}
@@ -53,7 +52,7 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 
 func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
 	log.Println("RequestLeaseRenewal", args)
-	chs := master.ChunkServerMetadata{
+	chs := master2.ChunkServerMetadata{
 		ID: args.ChunkServerID,
 	}
 
@@ -102,7 +101,7 @@ func main() {
 }
 
 func run() error {
-	master := master.NewMaster()
+	master := master2.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
 	rpc.Register(masterAPI)

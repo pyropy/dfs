@@ -3,6 +3,11 @@ package client
 import (
 	"bytes"
 	"errors"
+	meta "github.com/pyropy/dfs/core/chunk_metadata_service"
+	"github.com/pyropy/dfs/core/constants"
+	filemeta "github.com/pyropy/dfs/core/file_metadata_service"
+	"github.com/pyropy/dfs/rpc/chunkserver"
+	"github.com/pyropy/dfs/rpc/master"
 	"io"
 	"io/ioutil"
 	"log"
@@ -10,11 +15,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	meta "github.com/pyropy/dfs/business/core/chunk_metadata_service"
-	"github.com/pyropy/dfs/business/core/constants"
-	filemeta "github.com/pyropy/dfs/business/core/file_metadata_service"
-	"github.com/pyropy/dfs/business/rpc/chunkserver"
-	"github.com/pyropy/dfs/business/rpc/master"
 )
 
 const ChunkSizeBytes = 64 * 10e+6

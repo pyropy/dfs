@@ -2,7 +2,7 @@ package master
 
 import (
 	"github.com/google/uuid"
-	chunkServerRPC "github.com/pyropy/dfs/business/rpc/chunkserver"
+	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 	"log"
 	"net/rpc"
 	"sync"

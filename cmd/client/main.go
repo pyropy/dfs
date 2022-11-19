@@ -3,11 +3,10 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"github.com/pyropy/dfs/core/client"
+	"github.com/pyropy/dfs/core/file_metadata_service"
 	"log"
 	"time"
-
-	"github.com/pyropy/dfs/business/core/client"
-	filemetadataservice "github.com/pyropy/dfs/business/core/file_metadata_service"
 )
 
 func main() {
