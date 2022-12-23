@@ -13,7 +13,7 @@ type Lease struct {
 	ValidUntil time.Time
 }
 
-// Manages leases
+// LeaseService manages leases
 type LeaseService struct {
 	Mutex sync.RWMutex
 

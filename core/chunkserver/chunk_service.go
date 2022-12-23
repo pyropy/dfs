@@ -86,6 +86,18 @@ func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (Chunk, bool) {
 	return existingChunk, exists
 }
 
+func (cs *ChunkService) GetAllChunks() []Chunk {
+	cs.Mutex.RLock()
+	defer cs.Mutex.RUnlock()
+	chunks := make([]Chunk, 0, len(cs.Chunks))
+
+	for _, chunk := range cs.Chunks {
+		chunks = append(chunks, chunk)
+	}
+
+	return chunks
+}
+
 func (cs *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte, error) {
 	return nil, nil
 }

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/pyropy/dfs/core/constants"
-	master2 "github.com/pyropy/dfs/core/master"
+	masterCore "github.com/pyropy/dfs/core/master"
 	masterRPC "github.com/pyropy/dfs/rpc/master"
 	"log"
 	"net"
@@ -14,10 +14,10 @@ import (
 )
 
 type MasterAPI struct {
-	Master *master2.Master
+	Master *masterCore.Master
 }
 
-func NewMasterAPI(master *master2.Master) *MasterAPI {
+func NewMasterAPI(master *masterCore.Master) *MasterAPI {
 	return &MasterAPI{
 		Master: master,
 	}
@@ -46,7 +46,7 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 
 func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
 	log.Println("RequestLeaseRenewal", args)
-	chs := master2.ChunkServerMetadata{
+	chs := masterCore.ChunkServerMetadata{
 		ID: args.ChunkServerID,
 	}
 
@@ -88,6 +88,12 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 	return nil
 }
 
+func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.ReportHealthReply) error {
+	log.Println("ReportHealth", args)
+	m.Master.MarkHealthy(args.ChunkServerID)
+	return nil
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)
@@ -95,7 +101,7 @@ func main() {
 }
 
 func run() error {
-	master := master2.NewMaster()
+	master := masterCore.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
 	rpc.Register(masterAPI)
@@ -110,10 +116,10 @@ func run() error {
 	defer log.Println("shutdown", "status", "master rpc server stopped", l.Addr().String())
 	go http.Serve(l, nil)
 
-	log.Println("startup", "status", "chunkservers found", len(master.Chunkservers))
+	log.Println("startup", "status", "chunkservers found", len(master.ChunkServers))
 
 	log.Println("startup", "status", "starting healtcheck")
-	go master.StartHealthCheckService()
+	go master.StartHealthCheck()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
