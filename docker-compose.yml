@@ -1,0 +1,38 @@
+version: "3.6"
+
+services:
+  master:
+    build:
+      context: .
+      target: master
+    command: ["/app/master"]
+    ports:
+      - "1234:1234"
+
+  chunk_server_one:
+    build:
+      context: .
+      target: chunkserver
+    command: [ "/app/chunkserver" ]
+    environment:
+      SERVER_HOST: chunk_server_one
+      SERVER_PORT: 50001
+      MASTER_ADDR: "master:1234"
+    depends_on:
+      - master
+    ports:
+      - "1235:50001"
+
+  chunk_server_two:
+    build:
+      context: .
+      target: chunkserver
+    command: [ "/app/chunkserver" ]
+    environment:
+      SERVER_HOST: chunk_server_two
+      SERVER_PORT: 50002
+      MASTER_ADDR: "master:1234"
+    depends_on:
+      - master
+    ports:
+      - "1236:50002"
