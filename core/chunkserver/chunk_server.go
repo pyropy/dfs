@@ -27,10 +27,10 @@ type ChunkServer struct {
 }
 
 var (
-	ErrChunkAlreadyExists   = errors.New("Chunk already exists")
-	ErrChunkVersionMismatch = errors.New("Chunk version mismatch")
-	ErrChunkLeaseNotGranted = errors.New("Chunk lease not granted")
-	ErrDataNotFoundInCache  = errors.New("Data not found in cache.")
+	ErrChunkAlreadyExists   = errors.New("chunk already exists")
+	ErrChunkVersionMismatch = errors.New("chunk version mismatch")
+	ErrChunkLeaseNotGranted = errors.New("chunk lease not granted")
+	ErrDataNotFoundInCache  = errors.New("data not found in cache")
 )
 
 func NewChunkServer() *ChunkServer {
@@ -129,6 +129,18 @@ func (c *ChunkServer) MonitorExpiredLeases() {
 	}
 }
 
+// StartHealthReport creates ticker that ticks every 10 seconds and triggers ReportHealth func in new goroutine
+func (c *ChunkServer) StartHealthReport() {
+	ticker := time.NewTicker(10 * time.Second)
+
+	for {
+		select {
+		case _ = <-ticker.C:
+			go c.ReportHealth()
+		}
+	}
+}
+
 // RegisterChunkServer registers chunk server instance with Master API
 func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 	c.Mutex.Lock()
@@ -206,4 +218,37 @@ func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset
 	}
 
 	return nil
+}
+
+func (c *ChunkServer) ReportHealth() error {
+	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
+	if err != nil {
+		log.Println("error", "unreachable")
+		return err
+	}
+
+	defer client.Close()
+
+	chunkReport := make([]master.Chunk, 0, len(c.Chunks))
+	for _, chunk := range c.GetAllChunks() {
+		ch := master.Chunk{
+			ID:      chunk.ID,
+			Version: chunk.Version,
+		}
+		chunkReport = append(chunkReport, ch)
+	}
+
+	var reply master.ReportHealthReply
+	args := &master.ReportHealthArgs{
+		ChunkServerID: c.ChunkServerID,
+		Chunks:        chunkReport,
+	}
+
+	err = client.Call("MasterAPI.ReportHealth", args, &reply)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }

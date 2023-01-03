@@ -15,6 +15,8 @@ type Master interface {
 	RequestLeaseRenewal(args RequestLeaseRenewalArgs, reply RequestLeaseRenewalReply) error
 	// RequestWrite ...
 	RequestWrite(args RequestWriteArgs, reply RequestWriteReply) error
+	// ReportHealth ...
+	ReportHealth(args ReportHealthArgs, reply ReportHealthReply) error
 }
 
 type RegisterArgs struct {
@@ -61,4 +63,17 @@ type RequestWriteReply struct {
 	PrimaryChunkServerID uuid.UUID
 	ValidUntil           time.Time
 	ChunkServers         []ChunkServer
+}
+
+type Chunk struct {
+	ID      uuid.UUID
+	Version int
+}
+
+type ReportHealthArgs struct {
+	ChunkServerID uuid.UUID
+	Chunks        []Chunk
+}
+
+type ReportHealthReply struct {
 }

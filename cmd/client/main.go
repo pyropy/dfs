@@ -30,20 +30,20 @@ func main() {
 
 	log.Println("Create new file", newFileReply)
 
-	// for i := 0; i < 5; i++ {
-	b := make([]byte, 1024)
-	rand.Read(b)
+	for i := 0; i < 5; i++ {
+		b := make([]byte, 1024)
+		rand.Read(b)
 
-	buff := bytes.NewBuffer(b)
+		buff := bytes.NewBuffer(b)
 
-	bw, err := c.WriteFile(path, buff, 0)
-	if err != nil {
-		log.Fatalln(err)
-		return
+		bw, err := c.WriteFile(path, buff, i*10)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
+
+		log.Println("Bytes written", bw, "at offset", i*10)
+		time.Sleep(time.Second * 1)
 	}
-
-	log.Println("Bytes written", bw)
-	time.Sleep(time.Second * 1)
-	// }
 
 }

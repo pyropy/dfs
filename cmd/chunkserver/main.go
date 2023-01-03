@@ -13,10 +13,6 @@ import (
 	"syscall"
 )
 
-var MasterAddr = "localhost:1234"
-var ListenAddr = "localhost"
-var ListenPort = 0
-
 type ChunkServerAPI struct {
 	ChunkServer *chunkserver.ChunkServer
 }
@@ -116,9 +112,15 @@ func run() error {
 	chunkServer := chunkserver.NewChunkServer()
 	chunkServerAPI := NewChunkServerAPI(chunkServer)
 
+	cfg, err := GetConfig()
+	if err != nil {
+		log.Println("startup", "error", "config error")
+		return err
+	}
+
 	rpc.Register(chunkServerAPI)
 	rpc.HandleHTTP()
-	addr := fmt.Sprintf("%s:%d", ListenAddr, ListenPort)
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -132,7 +134,7 @@ func run() error {
 	defer log.Println("shutdown", "status", "chunkserver rpc server stopped", listenAddr)
 	go http.Serve(l, nil)
 
-	err = chunkServer.RegisterChunkServer(MasterAddr, listenAddr)
+	err = chunkServer.RegisterChunkServer(cfg.Master.Addr, listenAddr)
 	if err != nil {
 		log.Println("startup", "error", "failed to RegisterChunkServer chunkserver")
 		return err
@@ -140,6 +142,9 @@ func run() error {
 
 	// Start monitoring lease expiry
 	go chunkServer.MonitorExpiredLeases()
+
+	// Start reporting health to master
+	go chunkServer.StartHealthReport()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)

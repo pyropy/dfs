@@ -12,13 +12,13 @@ clean-client:
 	rm -f ./client
 
 run-master:
-	go run cmd/master/main.go
+	go run cmd/master/*.go
 
 run-client:
-	go run cmd/client/main.go
+	go run cmd/client/*.go
 
 run-chunkserver:
-	go run cmd/chunkserver/main.go
+	go run cmd/chunkserver/*.go
 
 build-master:
 	go build -o master cmd/master/main.go
