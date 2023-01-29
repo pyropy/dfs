@@ -129,13 +129,17 @@ func (m *Master) StartHealthCheck() {
 	for {
 		select {
 		case _ = <-ticker.C:
-			for _, cs := range m.ChunkServers {
+			m.ChunkServers.Range(func(k any, v any) bool {
+				cs := v.(ChunkServerMetadata)
+
 				if !cs.Active {
-					continue
+					return true
 				}
 
 				go HealthCheck(cs, unhealthyChan)
-			}
+				return true
+
+			})
 		case unhealthyChunkServerID := <-unhealthyChan:
 			m.ChunkServerMetadataService.MarkUnhealthy(unhealthyChunkServerID)
 		}

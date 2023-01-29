@@ -3,7 +3,7 @@ package master
 import (
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	"sync"
+	"github.com/pyropy/dfs/lib/concurrent_map"
 	"time"
 )
 
@@ -21,44 +21,39 @@ type ChunkServerMetadata struct {
 }
 
 type ChunkServerMetadataService struct {
-	Mutex        sync.RWMutex
-	Leases       map[uuid.UUID]model.Lease
-	ChunkServers map[uuid.UUID]ChunkServerMetadata
+	Leases       concurrent_map.Map[uuid.UUID, model.Lease]
+	ChunkServers concurrent_map.Map[uuid.UUID, ChunkServerMetadata]
 }
 
 func NewChunkServerMetadataService() *ChunkServerMetadataService {
 	return &ChunkServerMetadataService{
-		Leases:       map[uuid.UUID]model.Lease{},
-		ChunkServers: map[uuid.UUID]ChunkServerMetadata{},
+		Leases:       concurrent_map.NewMap[uuid.UUID, model.Lease](),
+		ChunkServers: concurrent_map.NewMap[uuid.UUID, ChunkServerMetadata](),
 	}
 }
 
 func (m *ChunkServerMetadataService) RegisterNewChunkServer(addr string) *ChunkServerMetadata {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-
 	chunkServerMetadata := ChunkServerMetadata{ID: uuid.New(), Address: addr, Healthy: true, Active: true, LastHealthReport: time.Now()}
-	m.ChunkServers[chunkServerMetadata.ID] = chunkServerMetadata
+	m.ChunkServers.Set(chunkServerMetadata.ID, chunkServerMetadata)
 	return &chunkServerMetadata
 }
 
 func (m *ChunkServerMetadataService) GetAllActiveChunkServers() []ChunkServerMetadata {
-	chunkServerList := make([]ChunkServerMetadata, 0, len(m.ChunkServers))
-	for _, cs := range m.ChunkServers {
+	chunkServerList := make([]ChunkServerMetadata, 0)
+	m.ChunkServers.Range(func(k, v any) bool {
+		cs := v.(ChunkServerMetadata)
 		if !cs.Active {
-			continue
+			return true
 		}
 
 		chunkServerList = append(chunkServerList, cs)
-	}
+		return true
+	})
 
 	return chunkServerList
 }
 
 func (m *ChunkServerMetadataService) SelectChunkServers(num int) []ChunkServerMetadata {
-	m.Mutex.RLock()
-	defer m.Mutex.RUnlock()
-
 	chunkServers := m.GetAllActiveChunkServers()
 
 	if len(chunkServers) <= num {
@@ -69,33 +64,36 @@ func (m *ChunkServerMetadataService) SelectChunkServers(num int) []ChunkServerMe
 }
 
 func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.UUID) *ChunkServerMetadata {
-	m.Mutex.RLock()
-	defer m.Mutex.RUnlock()
+	chunkServerMetadata, exists := m.ChunkServers.Get(chunkServerID)
+	if !exists {
+		return nil
+	}
 
-	chunkServerMetadata := m.ChunkServers[chunkServerID]
-	return &chunkServerMetadata
+	return chunkServerMetadata
 }
 
 func (m *ChunkServerMetadataService) MarkHealthy(chunkServerID uuid.UUID) {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	chunkServer, exists := m.ChunkServers.Get(chunkServerID)
+	if !exists {
+		return
+	}
 
-	chunkServer := m.ChunkServers[chunkServerID]
 	chunkServer.Healthy = true
 	chunkServer.FailedHealthChecks = 0
 	chunkServer.Active = true
-	m.ChunkServers[chunkServerID] = chunkServer
+	m.ChunkServers.Set(chunkServerID, *chunkServer)
 }
 
 func (m *ChunkServerMetadataService) MarkUnhealthy(chunkServerID uuid.UUID) {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	chunkServer, exists := m.ChunkServers.Get(chunkServerID)
+	if !exists {
+		return
+	}
 
-	chunkServer := m.ChunkServers[chunkServerID]
 	chunkServer.Healthy = false
 	chunkServer.FailedHealthChecks += 1
 	if chunkServer.FailedHealthChecks >= FailedHealthChecksThreshold {
 		chunkServer.Active = false
 	}
-	m.ChunkServers[chunkServerID] = chunkServer
+	m.ChunkServers.Set(chunkServerID, *chunkServer)
 }

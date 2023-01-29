@@ -3,18 +3,16 @@ package chunkserver
 import (
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/pyropy/dfs/core/model"
+	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
 	"log"
 	"os"
 	fp "path/filepath"
-	"sync"
-
-	"github.com/google/uuid"
-	"github.com/pyropy/dfs/core/model"
 )
 
 type ChunkService struct {
-	Mutex  sync.RWMutex
-	Chunks map[uuid.UUID]model.Chunk
+	Chunks concurrentMap.Map[uuid.UUID, model.Chunk]
 }
 
 var (
@@ -23,7 +21,7 @@ var (
 
 func NewChunkService() *ChunkService {
 	return &ChunkService{
-		Chunks: map[uuid.UUID]model.Chunk{},
+		Chunks: concurrentMap.NewMap[uuid.UUID, model.Chunk](),
 	}
 }
 
@@ -63,29 +61,24 @@ func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, versio
 }
 
 func (cs *ChunkService) AddChunk(chunk model.Chunk) {
-	cs.Mutex.Lock()
-	defer cs.Mutex.Unlock()
-
-	cs.Chunks[chunk.ID] = chunk
+	cs.Chunks.Set(chunk.ID, chunk)
 }
 
 func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (model.Chunk, bool) {
-	cs.Mutex.RLock()
-	defer cs.Mutex.RUnlock()
+	existingChunk, exists := cs.Chunks.Get(chunkID)
 
-	existingChunk, exists := cs.Chunks[chunkID]
-
-	return existingChunk, exists
+	return *existingChunk, exists
 }
 
 func (cs *ChunkService) GetAllChunks() []model.Chunk {
-	cs.Mutex.RLock()
-	defer cs.Mutex.RUnlock()
-	chunks := make([]model.Chunk, 0, len(cs.Chunks))
+	chunks := make([]model.Chunk, 0)
 
-	for _, chunk := range cs.Chunks {
+	cs.Chunks.Range(func(k, v any) bool {
+		chunk := v.(model.Chunk)
 		chunks = append(chunks, chunk)
-	}
+
+		return true
+	})
 
 	return chunks
 }
@@ -124,7 +117,7 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 	cs.Mutex.Lock()
 	defer cs.Mutex.Unlock()
 
-	chunk, exists := cs.Chunks[chunkID]
+	chunk, exists := cs.Chunks.Get(chunkID)
 	if !exists {
 		return ErrChunkDoesNotExist
 	}
@@ -142,7 +135,7 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 
 	chunk.Path = newPath
 	chunk.Version = chunk.Version + 1
-	cs.Chunks[chunk.ID] = chunk
+	cs.Chunks.Set(chunk.ID, *chunk)
 
 	return nil
 }

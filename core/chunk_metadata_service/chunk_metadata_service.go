@@ -2,10 +2,9 @@ package chunkmetadataservice
 
 import (
 	"errors"
-	"github.com/pyropy/dfs/core/model"
-	"sync"
-
 	"github.com/google/uuid"
+	"github.com/pyropy/dfs/core/model"
+	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
 )
 
 var (
@@ -13,13 +12,12 @@ var (
 )
 
 type ChunkMetadataService struct {
-	Mutex  sync.RWMutex
-	Chunks map[uuid.UUID]model.ChunkMetadata
+	Chunks concurrentMap.Map[uuid.UUID, model.ChunkMetadata]
 }
 
 func NewChunkMetadataService() *ChunkMetadataService {
 	return &ChunkMetadataService{
-		Chunks: map[uuid.UUID]model.ChunkMetadata{},
+		Chunks: concurrentMap.NewMap[uuid.UUID, model.ChunkMetadata](),
 	}
 }
 
@@ -35,17 +33,11 @@ func NewChunkMetadata(chunkID uuid.UUID, index, version int, chunkServerIds []uu
 }
 
 func (cs *ChunkMetadataService) AddNewChunkMetadata(chunk model.ChunkMetadata) {
-	cs.Mutex.Lock()
-	defer cs.Mutex.Unlock()
-
-	cs.Chunks[chunk.ID] = chunk
+	cs.Chunks.Set(chunk.ID, chunk)
 }
 
 func (cs *ChunkMetadataService) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
-	cs.Mutex.RLock()
-	defer cs.Mutex.RUnlock()
-
-	chunk, chunkExists := cs.Chunks[chunkID]
+	chunk, chunkExists := cs.Chunks.Get(chunkID)
 
 	if !chunkExists {
 		return []uuid.UUID{}
@@ -55,44 +47,38 @@ func (cs *ChunkMetadataService) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
 }
 
 func (cs *ChunkMetadataService) GetChunk(chunkID uuid.UUID) (*model.ChunkMetadata, error) {
-	cs.Mutex.RLock()
-	defer cs.Mutex.RUnlock()
 
-	chunk, chunkExists := cs.Chunks[chunkID]
+	chunk, chunkExists := cs.Chunks.Get(chunkID)
 	if !chunkExists {
 		return nil, ErrChunkNotFound
 	}
 
-	return &chunk, nil
+	return chunk, nil
 }
 
 func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, error) {
-	cs.Mutex.Lock()
-	defer cs.Mutex.Unlock()
 
-	chunk, chunkExists := cs.Chunks[chunkID]
+	chunk, chunkExists := cs.Chunks.Get(chunkID)
 	if !chunkExists {
 		return 0, ErrChunkNotFound
 	}
 
 	chunk.Version++
-	cs.Chunks[chunkID] = chunk
+	cs.Chunks.Set(chunkID, *chunk)
 
 	return chunk.Version, nil
 }
 
 // UpdateChunksLocation updates chunk location on chunk server heart beat reported to master
 func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chunks []model.ChunkMetadata) {
-	cs.Mutex.Lock()
-	defer cs.Mutex.Unlock()
-
 	for _, c := range chunks {
-		chunk, chunkExists := cs.Chunks[c.ID]
+		chunk, chunkExists := cs.Chunks.Get(c.ID)
 		if !chunkExists {
-			chunk = c
+			cp := c
+			chunk = &cp
 		}
 
 		chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
-		cs.Chunks[chunk.ID] = chunk
+		cs.Chunks.Set(chunk.ID, *chunk)
 	}
 }

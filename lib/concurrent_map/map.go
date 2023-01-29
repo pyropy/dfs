@@ -10,14 +10,14 @@ func NewMap[K, V any]() Map[K, V] {
 	return Map[K, V]{}
 }
 
-func (m *Map[K, V]) Get(k K) (V, bool) {
+func (m *Map[K, V]) Get(k K) (*V, bool) {
 	v, exists := m.cMap.Load(k)
 	if !exists {
 		return nil, false
 	}
 
 	val := v.(V)
-	return val, true
+	return &val, true
 }
 
 func (m *Map[K, V]) Set(k K, v V) {
