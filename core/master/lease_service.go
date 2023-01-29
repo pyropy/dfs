@@ -25,6 +25,11 @@ func NewLeaseService() *LeaseService {
 	}
 }
 
+// GetHolder returns lease holder for chunk id if any
+func (ls *LeaseService) GetHolder(chunkID uuid.UUID) (*model.Lease, bool) {
+	return ls.Leases.Get(chunkID)
+}
+
 // HaveLease checks if chunk servers has lease over chunk for given chunk ID
 func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
 	lease, leaseExists := ls.Leases.Get(chunkID)

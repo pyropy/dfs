@@ -2,11 +2,10 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"github.com/pyropy/dfs/core/client"
 	"github.com/pyropy/dfs/core/file_metadata_service"
 	"log"
-	"time"
+	"os"
 )
 
 func main() {
@@ -30,20 +29,23 @@ func main() {
 
 	log.Println("Create new file", newFileReply)
 
-	for i := 0; i < 5; i++ {
-		b := make([]byte, 1024)
-		rand.Read(b)
-
-		buff := bytes.NewBuffer(b)
-
-		bw, err := c.WriteFile(path, buff, i*10)
-		if err != nil {
-			log.Fatalln(err)
-			return
-		}
-
-		log.Println("Bytes written", bw, "at offset", i*10)
-		time.Sleep(time.Second * 1)
+	content, err := os.ReadFile("test.jpeg")
+	buff := bytes.NewBuffer(content)
+	//
+	//for i := 0; i < 5; i++ {
+	//	b := make([]byte, 1024)
+	//	rand.Read(b)
+	//
+	//	buff := bytes.NewBuffer(b)
+	//
+	bw, err := c.WriteFile(path, buff, 0)
+	if err != nil {
+		log.Fatalln(err)
+		return
 	}
+
+	log.Println("Bytes written", bw, "at offset", 0)
+	//time.Sleep(time.Second * 1)
+	//}
 
 }
