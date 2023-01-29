@@ -9,20 +9,12 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/pyropy/dfs/core/model"
 )
-
-type Chunk struct {
-	ID       uuid.UUID
-	Version  int
-	Path     string // chunk path on disk
-	FilePath string // file path on disk
-	Checksum int
-	Index    int
-}
 
 type ChunkService struct {
 	Mutex  sync.RWMutex
-	Chunks map[uuid.UUID]Chunk
+	Chunks map[uuid.UUID]model.Chunk
 }
 
 var (
@@ -31,7 +23,7 @@ var (
 
 func NewChunkService() *ChunkService {
 	return &ChunkService{
-		Chunks: map[uuid.UUID]Chunk{},
+		Chunks: map[uuid.UUID]model.Chunk{},
 	}
 }
 
@@ -46,7 +38,7 @@ func GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
 	return filepath
 }
 
-func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*Chunk, error) {
+func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*model.Chunk, error) {
 	// create chunks parent path dir
 	chunksParentPath := fp.Join("chunks", filePath)
 	err := os.MkdirAll(chunksParentPath, 0750)
@@ -60,7 +52,7 @@ func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, versio
 		return nil, err
 	}
 
-	chunk := Chunk{
+	chunk := model.Chunk{
 		ID:       id,
 		Version:  version,
 		Path:     chunkPath,
@@ -70,14 +62,14 @@ func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, versio
 	return &chunk, nil
 }
 
-func (cs *ChunkService) AddChunk(chunk Chunk) {
+func (cs *ChunkService) AddChunk(chunk model.Chunk) {
 	cs.Mutex.Lock()
 	defer cs.Mutex.Unlock()
 
 	cs.Chunks[chunk.ID] = chunk
 }
 
-func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (Chunk, bool) {
+func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (model.Chunk, bool) {
 	cs.Mutex.RLock()
 	defer cs.Mutex.RUnlock()
 
@@ -86,10 +78,10 @@ func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (Chunk, bool) {
 	return existingChunk, exists
 }
 
-func (cs *ChunkService) GetAllChunks() []Chunk {
+func (cs *ChunkService) GetAllChunks() []model.Chunk {
 	cs.Mutex.RLock()
 	defer cs.Mutex.RUnlock()
-	chunks := make([]Chunk, 0, len(cs.Chunks))
+	chunks := make([]model.Chunk, 0, len(cs.Chunks))
 
 	for _, chunk := range cs.Chunks {
 		chunks = append(chunks, chunk)

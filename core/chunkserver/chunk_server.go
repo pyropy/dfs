@@ -3,6 +3,7 @@ package chunkserver
 import (
 	"errors"
 	lru "github.com/pyropy/dfs/core/lru_cache"
+	"github.com/pyropy/dfs/core/model"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"log"
@@ -23,7 +24,7 @@ type ChunkServer struct {
 	LRU           *lru.LRU
 	MasterAddr    string
 	ChunkServerID uuid.UUID
-	LeaseExpChan  chan *Lease
+	LeaseExpChan  chan *model.Lease
 }
 
 var (
@@ -34,7 +35,7 @@ var (
 )
 
 func NewChunkServer() *ChunkServer {
-	leaseExpChan := make(chan *Lease)
+	leaseExpChan := make(chan *model.Lease)
 
 	return &ChunkServer{
 		LeaseExpChan: leaseExpChan,
@@ -44,7 +45,7 @@ func NewChunkServer() *ChunkServer {
 	}
 }
 
-func (c *ChunkServer) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*Chunk, error) {
+func (c *ChunkServer) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*model.Chunk, error) {
 	existingChunk, exists := c.GetChunk(id)
 	if exists && existingChunk.Version == version {
 		return nil, ErrChunkAlreadyExists
@@ -167,7 +168,7 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 }
 
 // RequestLeaseRenewal requests renewal for given lease from master
-func (c *ChunkServer) RequestLeaseRenewal(lease *Lease) error {
+func (c *ChunkServer) RequestLeaseRenewal(lease *model.Lease) error {
 	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
 	if err != nil {
 		log.Println("error", "unreachable")

@@ -1,6 +1,7 @@
 package chunkserver
 
 import (
+	"github.com/pyropy/dfs/core/model"
 	"log"
 	"sync"
 	"time"
@@ -8,29 +9,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type Lease struct {
-	ChunkID    uuid.UUID
-	ValidUntil time.Time
-}
-
 // LeaseService manages leases
 type LeaseService struct {
 	Mutex sync.RWMutex
 
-	Leases map[uuid.UUID]Lease
+	Leases map[uuid.UUID]model.Lease
 
-	leaseExpChan chan *Lease
+	leaseExpChan chan *model.Lease
 }
 
-func (l *Lease) IsExpired() bool {
-	now := time.Now()
-
-	return !l.ValidUntil.After(now)
-}
-
-func NewLeaseService(leaseExpChan chan *Lease) *LeaseService {
+func NewLeaseService(leaseExpChan chan *model.Lease) *LeaseService {
 	return &LeaseService{
-		Leases:       map[uuid.UUID]Lease{},
+		Leases:       map[uuid.UUID]model.Lease{},
 		leaseExpChan: leaseExpChan,
 	}
 }
@@ -53,7 +43,7 @@ func (ls *LeaseService) GrantLease(chunkID uuid.UUID, validUntil time.Time) {
 	ls.Mutex.Lock()
 	defer ls.Mutex.Unlock()
 
-	lease := Lease{
+	lease := model.Lease{
 		ChunkID:    chunkID,
 		ValidUntil: validUntil,
 	}

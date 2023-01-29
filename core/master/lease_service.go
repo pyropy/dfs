@@ -2,6 +2,7 @@ package master
 
 import (
 	"errors"
+	"github.com/pyropy/dfs/core/model"
 	"sync"
 	"time"
 
@@ -13,21 +14,15 @@ var (
 	ErrLeaseNotPreviouslyOwned = errors.New("Failed to extend lease. Chunk Server was not previous owner of the lease")
 )
 
-type Lease struct {
-	ChunkID       uuid.UUID
-	ValidUntil    time.Time
-	ChunkServerID uuid.UUID
-}
-
 // Manages leases
 type LeaseService struct {
 	Mutex  sync.RWMutex
-	Leases map[uuid.UUID]Lease
+	Leases map[uuid.UUID]model.Lease
 }
 
 func NewLeaseService() *LeaseService {
 	return &LeaseService{
-		Leases: map[uuid.UUID]Lease{},
+		Leases: map[uuid.UUID]model.Lease{},
 	}
 }
 
@@ -43,14 +38,14 @@ func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
 }
 
 // GrantLease grants lease over chunk for period of time
-func (ls *LeaseService) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) *Lease {
+func (ls *LeaseService) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) *model.Lease {
 	ls.Mutex.Lock()
 	defer ls.Mutex.Unlock()
 
 	validFor := 60 * time.Second
 	validUntil := time.Now().Add(validFor)
 
-	lease := Lease{
+	lease := model.Lease{
 		ChunkID:       chunkID,
 		ValidUntil:    validUntil,
 		ChunkServerID: chunkServer.ID,
@@ -63,7 +58,7 @@ func (ls *LeaseService) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMe
 
 // ExtendLease extends lease for a given chunkID if chunkserver
 // requesting extension previously had lase over the chunk
-func (ls *LeaseService) ExtendLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*Lease, error) {
+func (ls *LeaseService) ExtendLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*model.Lease, error) {
 	prevLease, leaseExists := ls.Leases[chunkID]
 
 	if !leaseExists {

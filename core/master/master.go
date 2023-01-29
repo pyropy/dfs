@@ -5,6 +5,7 @@ import (
 	"github.com/pyropy/dfs/core/chunk_metadata_service"
 	"github.com/pyropy/dfs/core/constants"
 	fileMeta "github.com/pyropy/dfs/core/file_metadata_service"
+	"github.com/pyropy/dfs/core/model"
 	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 	"log"
 	"math/rand"
@@ -40,7 +41,7 @@ func NewMaster() *Master {
 func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkSizeBytes int) (*fileMeta.FileMetadata, []uuid.UUID, error) {
 	// TODO: Add file namespace locks
 	var chunkIds []uuid.UUID
-	var chunkMetadata []chunkmetadataservice.ChunkMetadata
+	var chunkMetadata []model.ChunkMetadata
 	var chunkServerIds []uuid.UUID
 
 	fileExists := m.FileMetadataService.CheckFileExists(filePath)
@@ -83,7 +84,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 	return &fileMetadata, chunkServerIds, nil
 }
 
-func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, int, error) {
+func (m *Master) RequestWrite(chunkID uuid.UUID) (*model.Lease, int, error) {
 	chunkServers := m.GetChunkHolders(chunkID)
 	if len(chunkServers) == 0 {
 		return nil, 0, ErrChunkHolderNotFound
@@ -117,7 +118,7 @@ func (m *Master) RequestWrite(chunkID uuid.UUID) (*Lease, int, error) {
 	return lease, chunkVersion, nil
 }
 
-func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*Lease, error) {
+func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*model.Lease, error) {
 	return m.ExtendLease(chunkID, chunkServer)
 }
 
@@ -153,7 +154,7 @@ func (m *Master) createNewChunk(id uuid.UUID, filePath string, size int, chunkVe
 	return callChunkServerRPC(chunkServer, "ChunkServerAPI.CreateChunk", args, &reply)
 }
 
-func (m *Master) sendLeaseGrant(chunkID uuid.UUID, lease *Lease, chunkServer *ChunkServerMetadata) error {
+func (m *Master) sendLeaseGrant(chunkID uuid.UUID, lease *model.Lease, chunkServer *ChunkServerMetadata) error {
 	args := chunkServerRPC.GrantLeaseArgs{
 		ChunkID:    chunkID,
 		ValidUntil: lease.ValidUntil,
