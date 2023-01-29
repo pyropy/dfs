@@ -234,6 +234,7 @@ func (c *ChunkServer) ReportHealth() error {
 		ch := master.Chunk{
 			ID:      chunk.ID,
 			Version: chunk.Version,
+			Index:   chunk.Index,
 		}
 		chunkReport = append(chunkReport, ch)
 	}

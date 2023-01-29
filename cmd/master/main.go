@@ -1,6 +1,7 @@
 package main
 
 import (
+	chunkmetadataservice "github.com/pyropy/dfs/core/chunk_metadata_service"
 	"github.com/pyropy/dfs/core/constants"
 	masterCore "github.com/pyropy/dfs/core/master"
 	masterRPC "github.com/pyropy/dfs/rpc/master"
@@ -88,9 +89,18 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 	return nil
 }
 
+// TODO: Catch stale chunks
 func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.ReportHealthReply) error {
 	log.Println("ReportHealth", args)
+	var chunks []chunkmetadataservice.ChunkMetadata
+	// Map rpc Chunks to ChunkMetadata
+	for _, c := range args.Chunks {
+		chunks = append(chunks, chunkmetadataservice.ChunkMetadata{ChunkID: c.ID, Version: c.Version})
+	}
+
 	m.Master.MarkHealthy(args.ChunkServerID)
+	m.Master.UpdateChunksLocation(args.ChunkServerID, chunks)
+
 	return nil
 }
 

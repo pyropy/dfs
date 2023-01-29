@@ -68,6 +68,7 @@ type RequestWriteReply struct {
 type Chunk struct {
 	ID      uuid.UUID
 	Version int
+	Index   int
 }
 
 type ReportHealthArgs struct {

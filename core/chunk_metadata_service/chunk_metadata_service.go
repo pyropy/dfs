@@ -77,3 +77,19 @@ func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, e
 
 	return chunk.Version, nil
 }
+
+// UpdateChunksLocation updates chunk location on chunk server heart beat reported to master
+func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chunks []ChunkMetadata) {
+	cs.Mutex.Lock()
+	defer cs.Mutex.Unlock()
+
+	for _, c := range chunks {
+		chunk, chunkExists := cs.Chunks[c.ChunkID]
+		if !chunkExists {
+			chunk = c
+		}
+
+		chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
+		cs.Chunks[chunk.ChunkID] = chunk
+	}
+}

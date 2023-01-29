@@ -5,14 +5,6 @@ import (
 	"time"
 )
 
-type HealthCheckArgs struct {
-}
-
-type HealthCheckReply struct {
-	// TODO: Add chunk info to reply
-	Status int
-}
-
 type CreateChunkRequest struct {
 	ChunkID      uuid.UUID
 	ChunkVersion int
@@ -82,7 +74,6 @@ type ApplyMigrationReply struct {
 }
 
 type IChunkServer interface {
-	HealthCheck(args *HealthCheckArgs, reply *HealthCheckReply) error
 	CreateChunk(args *CreateChunkRequest, reply *CreateChunkReply) error
 	GrantLease(args *GrantLeaseArgs, reply *GrantLeaseReply) error
 	IncrementChunkVersion(args *IncrementChunkVersionArgs, reply *IncrementChunkVersionReply) error

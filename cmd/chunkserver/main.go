@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/pyropy/dfs/core/chunkserver"
-	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 	"log"
 	"net"
 	"net/http"
@@ -11,6 +9,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/pyropy/dfs/core/chunkserver"
+	"github.com/pyropy/dfs/core/logger"
+	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 )
 
 type ChunkServerAPI struct {
@@ -21,13 +23,6 @@ func NewChunkServerAPI(chunkServer *chunkserver.ChunkServer) *ChunkServerAPI {
 	return &ChunkServerAPI{
 		ChunkServer: chunkServer,
 	}
-}
-
-// HealthCheck ...
-func (c *ChunkServerAPI) HealthCheck(_ *chunkServerRPC.HealthCheckArgs, reply *chunkServerRPC.HealthCheckReply) error {
-	reply.Status = 200
-
-	return nil
 }
 
 // CreateChunk ...
@@ -112,9 +107,15 @@ func run() error {
 	chunkServer := chunkserver.NewChunkServer()
 	chunkServerAPI := NewChunkServerAPI(chunkServer)
 
+	log, err := logger.New("chunk-server-rpc")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	cfg, err := GetConfig()
 	if err != nil {
-		log.Println("startup", "error", "config error")
+		log.Errorw("startup", "error", "config error")
 		return err
 	}
 
@@ -124,19 +125,19 @@ func run() error {
 
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Println("startup", "error", "net listen failed")
+		log.Errorw("startup", "error", "net listen failed")
 		return err
 	}
 
 	listenAddr := l.Addr().String()
 
-	log.Println("startup", "status", "chunkserver rpc server started", listenAddr)
-	defer log.Println("shutdown", "status", "chunkserver rpc server stopped", listenAddr)
+	log.Infow("startup", "status", "chunkserver rpc server started", listenAddr)
+	defer log.Infow("shutdown", "status", "chunkserver rpc server stopped", listenAddr)
 	go http.Serve(l, nil)
 
 	err = chunkServer.RegisterChunkServer(cfg.Master.Addr, listenAddr)
 	if err != nil {
-		log.Println("startup", "error", "failed to RegisterChunkServer chunkserver")
+		log.Errorw("startup", "error", "failed to RegisterChunkServer chunkserver")
 		return err
 	}
 
@@ -149,7 +150,7 @@ func run() error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	<-shutdown
-	log.Println("shutdown", "status", "chunkserver rpc server stopping", listenAddr)
+	log.Infow("shutdown", "status", "chunkserver rpc server stopping", listenAddr)
 
 	return nil
 }
