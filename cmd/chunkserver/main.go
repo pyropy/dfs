@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/pyropy/dfs/lib/logger"
 	"log"
 	"net"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/pyropy/dfs/core/chunkserver"
-	"github.com/pyropy/dfs/core/logger"
 	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
 )
 

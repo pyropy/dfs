@@ -2,8 +2,8 @@ package chunkserver
 
 import (
 	"errors"
-	lru "github.com/pyropy/dfs/core/lru_cache"
 	"github.com/pyropy/dfs/core/model"
+	lru "github.com/pyropy/dfs/lib/lru_cache"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"log"

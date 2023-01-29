@@ -2,7 +2,7 @@ package master
 
 import (
 	"github.com/google/uuid"
-	"github.com/pyropy/dfs/core/lease_service"
+	"github.com/pyropy/dfs/core/model"
 	"sync"
 	"time"
 )
@@ -22,13 +22,13 @@ type ChunkServerMetadata struct {
 
 type ChunkServerMetadataService struct {
 	Mutex        sync.RWMutex
-	Leases       map[uuid.UUID]lease_service.Lease
+	Leases       map[uuid.UUID]model.Lease
 	ChunkServers map[uuid.UUID]ChunkServerMetadata
 }
 
 func NewChunkServerMetadataService() *ChunkServerMetadataService {
 	return &ChunkServerMetadataService{
-		Leases:       map[uuid.UUID]lease_service.Lease{},
+		Leases:       map[uuid.UUID]model.Lease{},
 		ChunkServers: map[uuid.UUID]ChunkServerMetadata{},
 	}
 }
