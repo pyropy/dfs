@@ -3,7 +3,7 @@ package master
 import (
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	"github.com/pyropy/dfs/lib/concurrent_map"
+	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
 	"github.com/pyropy/dfs/lib/utils"
 	"time"
 )
@@ -22,14 +22,14 @@ type ChunkServerMetadata struct {
 }
 
 type ChunkServerMetadataService struct {
-	Leases       concurrent_map.Map[uuid.UUID, model.Lease]
-	ChunkServers concurrent_map.Map[uuid.UUID, ChunkServerMetadata]
+	Leases       concurrentMap.Map[uuid.UUID, model.Lease]
+	ChunkServers concurrentMap.Map[uuid.UUID, ChunkServerMetadata]
 }
 
 func NewChunkServerMetadataService() *ChunkServerMetadataService {
 	return &ChunkServerMetadataService{
-		Leases:       concurrent_map.NewMap[uuid.UUID, model.Lease](),
-		ChunkServers: concurrent_map.NewMap[uuid.UUID, ChunkServerMetadata](),
+		Leases:       concurrentMap.NewMap[uuid.UUID, model.Lease](),
+		ChunkServers: concurrentMap.NewMap[uuid.UUID, ChunkServerMetadata](),
 	}
 }
 

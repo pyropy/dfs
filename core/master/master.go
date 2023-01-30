@@ -2,9 +2,7 @@ package master
 
 import (
 	"errors"
-	"github.com/pyropy/dfs/core/chunk_metadata_service"
 	"github.com/pyropy/dfs/core/constants"
-	fileMeta "github.com/pyropy/dfs/core/file_metadata_service"
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/logger"
 	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
@@ -17,8 +15,8 @@ import (
 
 type Master struct {
 	*LeaseService
-	*fileMeta.FileMetadataService
-	*chunkmetadataservice.ChunkMetadataService
+	*FileMetadataService
+	*ChunkMetadataService
 	*ChunkServerMetadataService
 }
 
@@ -35,14 +33,14 @@ var log, _ = logger.New("master-rpc")
 func NewMaster() *Master {
 	return &Master{
 		LeaseService:               NewLeaseService(),
-		FileMetadataService:        fileMeta.NewFileMetadataService(),
-		ChunkMetadataService:       chunkmetadataservice.NewChunkMetadataService(),
+		FileMetadataService:        NewFileMetadataService(),
+		ChunkMetadataService:       NewChunkMetadataService(),
 		ChunkServerMetadataService: NewChunkServerMetadataService(),
 	}
 }
 
 // CreateNewFile selects chunk servers and instructs them to create N number of chunks with predefined IDs
-func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkSizeBytes int) (*fileMeta.FileMetadata, []uuid.UUID, error) {
+func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkSizeBytes int) (*model.FileMetadata, []uuid.UUID, error) {
 	// TODO: Add file namespace locks
 	var chunkIds []uuid.UUID
 	var chunkMetadata []model.ChunkMetadata
@@ -55,7 +53,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 
 	chunkVersion := constants.INITIAL_CHUNK_VERSION
 	chunkServers := m.ChunkServerMetadataService.SelectChunkServers(repFactor, []uuid.UUID{})
-	fileMetadata := fileMeta.NewFileMetadata(filePath)
+	fileMetadata := model.NewFileMetadata(filePath)
 	numChunks := (fileSizeBytes + (chunkSizeBytes - 1)) / chunkSizeBytes
 
 	for _, cs := range chunkServers {
@@ -66,7 +64,7 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 		chunkID := uuid.New()
 		chunkIds = append(chunkIds, chunkID)
 		fileMetadata.Chunks = append(fileMetadata.Chunks, chunkID)
-		chunk := chunkmetadataservice.NewChunkMetadata(chunkID, i, chunkVersion, chunkServerIds)
+		chunk := NewChunkMetadata(chunkID, i, chunkVersion, chunkServerIds)
 		chunkMetadata = append(chunkMetadata, chunk)
 
 		for _, chunkServer := range chunkServers {

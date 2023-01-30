@@ -1,4 +1,4 @@
-package chunkmetadataservice
+package master
 
 import (
 	"errors"

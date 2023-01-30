@@ -221,6 +221,7 @@ func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset
 	return nil
 }
 
+// TODO: Refactor
 // ReplicateChunk replicates chunk with chunkID to list of provided chunkServers
 func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkServer.ChunkServer) error {
 	chunk, exists := c.ChunkService.GetChunk(chunkID)
