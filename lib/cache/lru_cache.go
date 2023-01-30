@@ -1,23 +1,23 @@
-package lru_cache
+package cache
 
-type Node struct {
+type LRUNode struct {
 	Key int
 	Val []byte
 
-	Prev *Node
-	Next *Node
+	Prev *LRUNode
+	Next *LRUNode
 }
 
 type LRU struct {
 	capacity int
-	cache    map[int]*Node
+	cache    map[int]*LRUNode
 
-	left  *Node
-	right *Node
+	left  *LRUNode
+	right *LRUNode
 }
 
 func NewLRU(capacity int) *LRU {
-	left, right := &Node{}, &Node{}
+	left, right := &LRUNode{}, &LRUNode{}
 
 	left.Next = right
 	right.Prev = left
@@ -26,7 +26,7 @@ func NewLRU(capacity int) *LRU {
 		left:     left,
 		right:    right,
 		capacity: capacity,
-		cache:    make(map[int]*Node),
+		cache:    make(map[int]*LRUNode),
 	}
 }
 
@@ -36,7 +36,7 @@ func (l *LRU) Put(key int, value []byte) {
 		l.deleteNode(node)
 	}
 
-	node = &Node{Key: key, Val: value}
+	node = &LRUNode{Key: key, Val: value}
 	l.cache[key] = node
 	l.insertNode(node)
 
@@ -68,7 +68,7 @@ func (l *LRU) Evict() {
 	delete(l.cache, lru.Key)
 }
 
-func (l *LRU) insertNode(node *Node) {
+func (l *LRU) insertNode(node *LRUNode) {
 	prev, next := l.right.Prev, l.right
 
 	node.Prev = prev
@@ -78,7 +78,7 @@ func (l *LRU) insertNode(node *Node) {
 	next.Prev = node
 }
 
-func (l *LRU) deleteNode(node *Node) {
+func (l *LRU) deleteNode(node *LRUNode) {
 	prev, next := node.Prev, node.Next
 
 	prev.Next = next

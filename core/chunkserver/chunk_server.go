@@ -3,7 +3,7 @@ package chunkserver
 import (
 	"errors"
 	"github.com/pyropy/dfs/core/model"
-	lru "github.com/pyropy/dfs/lib/lru_cache"
+	"github.com/pyropy/dfs/lib/cache"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"log"
@@ -21,7 +21,7 @@ type ChunkServer struct {
 	*LeaseService
 
 	Mutex         sync.RWMutex
-	LRU           *lru.LRU
+	LRU           *cache.LRU
 	MasterAddr    string
 	ChunkServerID uuid.UUID
 	LeaseExpChan  chan *model.Lease
@@ -39,7 +39,7 @@ func NewChunkServer() *ChunkServer {
 
 	return &ChunkServer{
 		LeaseExpChan: leaseExpChan,
-		LRU:          lru.NewLRU(100),
+		LRU:          cache.NewLRU(100),
 		ChunkService: NewChunkService(),
 		LeaseService: NewLeaseService(leaseExpChan),
 	}
