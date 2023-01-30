@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 	"github.com/pyropy/dfs/lib/utils"
 )
 
@@ -13,12 +13,12 @@ var (
 )
 
 type ChunkMetadataService struct {
-	Chunks concurrentMap.Map[uuid.UUID, model.ChunkMetadata]
+	Chunks cmap.Map[uuid.UUID, model.ChunkMetadata]
 }
 
 func NewChunkMetadataService() *ChunkMetadataService {
 	return &ChunkMetadataService{
-		Chunks: concurrentMap.NewMap[uuid.UUID, model.ChunkMetadata](),
+		Chunks: cmap.NewMap[uuid.UUID, model.ChunkMetadata](),
 	}
 }
 

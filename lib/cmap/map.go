@@ -1,4 +1,4 @@
-package concurrent_map
+package cmap
 
 import "sync"
 

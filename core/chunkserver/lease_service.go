@@ -2,7 +2,7 @@ package chunkserver
 
 import (
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 	"log"
 	"time"
 
@@ -11,14 +11,14 @@ import (
 
 // LeaseService manages leases
 type LeaseService struct {
-	Leases concurrentMap.Map[uuid.UUID, model.Lease]
+	Leases cmap.Map[uuid.UUID, model.Lease]
 
 	leaseExpChan chan *model.Lease
 }
 
 func NewLeaseService(leaseExpChan chan *model.Lease) *LeaseService {
 	return &LeaseService{
-		Leases:       concurrentMap.NewMap[uuid.UUID, model.Lease](),
+		Leases:       cmap.NewMap[uuid.UUID, model.Lease](),
 		leaseExpChan: leaseExpChan,
 	}
 }

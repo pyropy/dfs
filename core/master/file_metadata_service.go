@@ -2,18 +2,18 @@ package master
 
 import (
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 )
 
 // TODO: Implement some kinda Tree Structure
 // to hold file/dir metadata so users can traverse filesystem
 type FileMetadataService struct {
-	Files concurrentMap.Map[model.FilePath, model.FileMetadata]
+	Files cmap.Map[model.FilePath, model.FileMetadata]
 }
 
 func NewFileMetadataService() *FileMetadataService {
 	return &FileMetadataService{
-		Files: concurrentMap.NewMap[model.FilePath, model.FileMetadata](),
+		Files: cmap.NewMap[model.FilePath, model.FileMetadata](),
 	}
 }
 

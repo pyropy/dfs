@@ -2,16 +2,16 @@ package client
 
 import (
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 )
 
 type FileMetadataService struct {
-	Files concurrentMap.Map[model.FilePath, model.FileMetadata]
+	Files cmap.Map[model.FilePath, model.FileMetadata]
 }
 
 func NewFileMetadataService() *FileMetadataService {
 	return &FileMetadataService{
-		Files: concurrentMap.NewMap[model.FilePath, model.FileMetadata](),
+		Files: cmap.NewMap[model.FilePath, model.FileMetadata](),
 	}
 }
 
