@@ -3,9 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
-	meta "github.com/pyropy/dfs/core/chunk_metadata_service"
 	"github.com/pyropy/dfs/core/constants"
-	filemeta "github.com/pyropy/dfs/core/file_metadata_service"
 	"github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"io"
@@ -24,8 +22,8 @@ var (
 )
 
 type Client struct {
-	*meta.ChunkMetadataService
-	*filemeta.FileMetadataService
+	*ChunkMetadataService
+	*FileMetadataService
 
 	RpcClient *rpc.Client
 }
@@ -38,8 +36,8 @@ func NewClient(masterAddr string) (*Client, error) {
 
 	return &Client{
 		RpcClient:            rpcClient,
-		ChunkMetadataService: meta.NewChunkMetadataService(),
-		FileMetadataService:  filemeta.NewFileMetadataService(),
+		ChunkMetadataService: NewChunkMetadataService(),
+		FileMetadataService:  NewFileMetadataService(),
 	}, nil
 }
 
@@ -54,7 +52,7 @@ func (c *Client) CreateNewFile(path string, size int) (*master.CreateNewFileRepl
 
 	// Chunks ids are generated sequentually hence we can index them by iterrating over chunk ids reply
 	for chunkIndex, chunkId := range reply.Chunks {
-		chunkMetadata := meta.NewChunkMetadata(chunkId, chunkIndex, constants.INITIAL_CHUNK_VERSION, reply.ChunkServerIDs)
+		chunkMetadata := NewChunkMetadata(chunkId, chunkIndex, constants.INITIAL_CHUNK_VERSION, reply.ChunkServerIDs)
 		c.AddNewChunkMetadata(chunkMetadata)
 
 	}

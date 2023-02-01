@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 	"log"
 	"os"
 	fp "path/filepath"
 )
 
 type ChunkService struct {
-	Chunks concurrentMap.Map[uuid.UUID, model.Chunk]
+	Chunks cmap.Map[uuid.UUID, model.Chunk]
 }
 
 var (
@@ -21,7 +21,7 @@ var (
 
 func NewChunkService() *ChunkService {
 	return &ChunkService{
-		Chunks: concurrentMap.NewMap[uuid.UUID, model.Chunk](),
+		Chunks: cmap.NewMap[uuid.UUID, model.Chunk](),
 	}
 }
 
@@ -64,10 +64,8 @@ func (cs *ChunkService) AddChunk(chunk model.Chunk) {
 	cs.Chunks.Set(chunk.ID, chunk)
 }
 
-func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (model.Chunk, bool) {
-	existingChunk, exists := cs.Chunks.Get(chunkID)
-
-	return *existingChunk, exists
+func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (*model.Chunk, bool) {
+	return cs.Chunks.Get(chunkID)
 }
 
 func (cs *ChunkService) GetAllChunks() []model.Chunk {
@@ -83,8 +81,35 @@ func (cs *ChunkService) GetAllChunks() []model.Chunk {
 	return chunks
 }
 
+// ReadChunk reads chunk lenght number of bytes starting at given offset. If lenght is -1 whole chunk file is read
 func (cs *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte, error) {
-	return nil, nil
+	chunk, exists := cs.GetChunk(chunkID)
+	if !exists {
+		return nil, ErrChunkDoesNotExist
+	}
+
+	// Read all
+	if length == -1 {
+		return os.ReadFile(chunk.Path)
+	}
+
+	file, err := os.Open(chunk.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = file.Seek(int64(offset), 0)
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]byte, length)
+	_, err = file.Read(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset int, version int) (int, error) {

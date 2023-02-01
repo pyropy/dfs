@@ -3,7 +3,7 @@ package master
 import (
 	"errors"
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,13 +16,18 @@ var (
 
 // Manages leases
 type LeaseService struct {
-	Leases concurrentMap.Map[uuid.UUID, model.Lease]
+	Leases cmap.Map[uuid.UUID, model.Lease]
 }
 
 func NewLeaseService() *LeaseService {
 	return &LeaseService{
-		Leases: concurrentMap.NewMap[uuid.UUID, model.Lease](),
+		Leases: cmap.NewMap[uuid.UUID, model.Lease](),
 	}
+}
+
+// GetHolder returns lease holder for chunk id if any
+func (ls *LeaseService) GetHolder(chunkID uuid.UUID) (*model.Lease, bool) {
+	return ls.Leases.Get(chunkID)
 }
 
 // HaveLease checks if chunk servers has lease over chunk for given chunk ID

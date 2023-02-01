@@ -3,7 +3,7 @@ package chunkserver
 import (
 	"errors"
 	"github.com/pyropy/dfs/core/model"
-	lru "github.com/pyropy/dfs/lib/lru_cache"
+	"github.com/pyropy/dfs/lib/cache"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"log"
@@ -21,7 +21,7 @@ type ChunkServer struct {
 	*LeaseService
 
 	Mutex         sync.RWMutex
-	LRU           *lru.LRU
+	LRU           *cache.LRU
 	MasterAddr    string
 	ChunkServerID uuid.UUID
 	LeaseExpChan  chan *model.Lease
@@ -39,7 +39,7 @@ func NewChunkServer() *ChunkServer {
 
 	return &ChunkServer{
 		LeaseExpChan: leaseExpChan,
-		LRU:          lru.NewLRU(100),
+		LRU:          cache.NewLRU(100),
 		ChunkService: NewChunkService(),
 		LeaseService: NewLeaseService(leaseExpChan),
 	}
@@ -221,6 +221,89 @@ func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset
 	return nil
 }
 
+// TODO: Refactor
+// ReplicateChunk replicates chunk with chunkID to list of provided chunkServers
+func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkServer.ChunkServer) error {
+	chunk, exists := c.ChunkService.GetChunk(chunkID)
+	if !exists {
+		return ErrChunkDoesNotExist
+	}
+
+	// read data
+	data, err := c.ChunkService.ReadChunk(chunkID, 0, -1)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+
+	// create chunks
+	for _, chunkServer := range chunkServers {
+		go func(chunkServer rpcChunkServer.ChunkServer) error {
+			wg.Add(1)
+			defer wg.Done()
+
+			conn, err := rpc.DialHTTP("tcp", chunkServer.Address)
+			if err != nil {
+				return err
+			}
+
+			defer conn.Close()
+
+			// create chunk
+			createChunkArgs := rpcChunkServer.CreateChunkRequest{
+				ChunkID:      chunk.ID,
+				ChunkVersion: chunk.Version,
+				ChunkIndex:   chunk.Index,
+				FilePath:     chunk.FilePath,
+			}
+
+			var createChunkReply rpcChunkServer.CreateChunkReply
+
+			err = conn.Call("ChunkServerAPI.CreateChunk", createChunkArgs, &createChunkReply)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+
+			// transfer data
+			transferDataArgs := rpcChunkServer.TransferDataArgs{
+				Data:     data,
+				CheckSum: 123123, // TODO Add checksum
+			}
+
+			var transferDataReply rpcChunkServer.TransferDataReply
+
+			err = conn.Call("ChunkServerAPI.TransferData", transferDataArgs, &transferDataReply)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+
+			// Apply migration
+			applyMigrationArgs := rpcChunkServer.ApplyMigrationArgs{
+				ChunkID:  chunk.ID,
+				CheckSum: 123123, // TODO Add checksum
+				Offset:   0,
+				Version:  chunk.Version,
+			}
+
+			var applyMigrationReply rpcChunkServer.ApplyMigrationReply
+
+			err = conn.Call("ChunkServerAPI.ApplyMigration", applyMigrationArgs, &applyMigrationReply)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+
+			return nil
+		}(chunkServer)
+	}
+
+	wg.Wait()
+	return nil
+}
+
 func (c *ChunkServer) ReportHealth() error {
 	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
 	if err != nil {
@@ -230,7 +313,7 @@ func (c *ChunkServer) ReportHealth() error {
 
 	defer client.Close()
 
-	chunkReport := make([]master.Chunk, 0, len(c.Chunks))
+	chunkReport := make([]master.Chunk, 0)
 	for _, chunk := range c.GetAllChunks() {
 		ch := master.Chunk{
 			ID:      chunk.ID,

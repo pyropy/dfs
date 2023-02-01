@@ -73,6 +73,14 @@ type ApplyMigrationReply struct {
 	BytesWritten int
 }
 
+type ReplicateChunkArgs struct {
+	ChunkID      uuid.UUID
+	ChunkServers []ChunkServer
+}
+
+type ReplicateChunkReply struct {
+}
+
 type IChunkServer interface {
 	CreateChunk(args *CreateChunkRequest, reply *CreateChunkReply) error
 	GrantLease(args *GrantLeaseArgs, reply *GrantLeaseReply) error
@@ -80,4 +88,5 @@ type IChunkServer interface {
 	TransferData(args *TransferDataArgs, reply *TransferDataReply) error
 	WriteChunk(args *WriteChunkArgs, reply *WriteChunkReply) error
 	ApplyMigration(args *ApplyMigrationArgs, reply *ApplyMigrationReply) error
+	ReplicateChunk(args *ReplicateChunkArgs, reply *ReplicateChunkReply) error
 }

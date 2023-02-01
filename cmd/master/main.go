@@ -4,8 +4,8 @@ import (
 	"github.com/pyropy/dfs/core/constants"
 	masterCore "github.com/pyropy/dfs/core/master"
 	"github.com/pyropy/dfs/core/model"
+	"github.com/pyropy/dfs/lib/logger"
 	masterRPC "github.com/pyropy/dfs/rpc/master"
-	"log"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -13,6 +13,8 @@ import (
 	"os/signal"
 	"syscall"
 )
+
+var log, _ = logger.New("master")
 
 type MasterAPI struct {
 	Master *masterCore.Master
@@ -25,16 +27,17 @@ func NewMasterAPI(master *masterCore.Master) *MasterAPI {
 }
 
 func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *masterRPC.RegisterReply) error {
+	log.Infow("rpc", "event", "RegisterChunkServer", "args", args)
 	chunkServer := m.Master.RegisterNewChunkServer(args.Address)
 	reply.ID = chunkServer.ID
 
-	log.Println("Registered new chunk server", chunkServer.ID, chunkServer.Address)
+	log.Infow("rpc", "status", "registered new chunk server", "id", chunkServer.ID, "address", chunkServer.Address)
 
 	return nil
 }
 
 func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
-	log.Println("CreateNewFile", args)
+	log.Infow("rpc", "event", "CreateNewFile", "args", args)
 	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, constants.REPLICATION_FACTOR, constants.CHUNK_SIZE_BYTES)
 	if err != nil {
 		return err
@@ -46,7 +49,7 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 }
 
 func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
-	log.Println("RequestLeaseRenewal", args)
+	log.Infow("rpc", "event", "RequestLeaseRenewal", "args", args)
 	chs := masterCore.ChunkServerMetadata{
 		ID: args.ChunkServerID,
 	}
@@ -63,7 +66,7 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 }
 
 func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
-	log.Println("RequestWrite", args)
+	log.Infow("rpc", "event", "RequestWrite", "args", args)
 	chunkServers := []masterRPC.ChunkServer{}
 	lease, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
 	if err != nil {
@@ -91,7 +94,7 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 
 // TODO: Catch stale chunks
 func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.ReportHealthReply) error {
-	log.Println("ReportHealth", args)
+	log.Infow("rpc", "event", "ReportHealth", "args", args)
 	var chunks []model.ChunkMetadata
 	// Map rpc Chunks to ChunkMetadata
 	for _, c := range args.Chunks {
@@ -126,23 +129,24 @@ func run() error {
 	rpc.HandleHTTP()
 	l, err := net.Listen("tcp", ":1234")
 	if err != nil {
-		log.Println("startup", "error", "net listen failed")
+		log.Infow("startup", "error", "net listen failed")
 		return err
 	}
 
-	log.Println("startup", "status", "master rpc server started", l.Addr().String())
-	defer log.Println("shutdown", "status", "master rpc server stopped", l.Addr().String())
+	log.Infow("startup", "status", "master rpc server started", "address", l.Addr().String())
+	defer log.Infow("shutdown", "status", "master rpc server stopped", "address", l.Addr().String())
 	go http.Serve(l, nil)
 
-	log.Println("startup", "status", "chunkservers found", len(master.ChunkServers))
-
-	log.Println("startup", "status", "starting healtcheck")
+	log.Infow("startup", "status", "starting healtcheck")
 	go master.StartHealthCheck()
+
+	log.Infow("startup", "status", "starting replication monitor")
+	go master.StartReplicationMonitor()
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	<-shutdown
-	log.Println("shutdown", "status", "master rpc server stopping", l.Addr().String())
+	log.Infow("shutdown", "status", "master rpc server stopping", "address", l.Addr().String())
 
 	return nil
 }

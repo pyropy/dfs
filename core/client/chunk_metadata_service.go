@@ -1,10 +1,11 @@
-package chunkmetadataservice
+package client
 
 import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	concurrentMap "github.com/pyropy/dfs/lib/concurrent_map"
+	"github.com/pyropy/dfs/lib/cmap"
+	"github.com/pyropy/dfs/lib/utils"
 )
 
 var (
@@ -12,12 +13,12 @@ var (
 )
 
 type ChunkMetadataService struct {
-	Chunks concurrentMap.Map[uuid.UUID, model.ChunkMetadata]
+	Chunks cmap.Map[uuid.UUID, model.ChunkMetadata]
 }
 
 func NewChunkMetadataService() *ChunkMetadataService {
 	return &ChunkMetadataService{
-		Chunks: concurrentMap.NewMap[uuid.UUID, model.ChunkMetadata](),
+		Chunks: cmap.NewMap[uuid.UUID, model.ChunkMetadata](),
 	}
 }
 
@@ -78,7 +79,27 @@ func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chun
 			chunk = &cp
 		}
 
-		chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
-		cs.Chunks.Set(chunk.ID, *chunk)
+		if !utils.Contains(chunk.ChunkServers, chunkHolder) {
+			chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
+			cs.Chunks.Set(chunk.ID, *chunk)
+		}
 	}
+}
+
+// RemoveChunkHolder removes given chunk holder from list of chunk holders for all chunks
+func (cs *ChunkMetadataService) RemoveChunkHolder(chunkHolderID uuid.UUID) {
+	cs.Chunks.Range(func(k, v any) bool {
+		chunkMetadata := v.(model.ChunkMetadata)
+		chunkServers := make([]uuid.UUID, 0)
+
+		for _, chunkServerID := range chunkMetadata.ChunkServers {
+			if chunkHolderID != chunkServerID {
+				chunkServers = append(chunkServers, chunkServerID)
+			}
+		}
+
+		chunkMetadata.ChunkServers = chunkServers
+		cs.Chunks.Set(chunkMetadata.ID, chunkMetadata)
+		return true
+	})
 }
