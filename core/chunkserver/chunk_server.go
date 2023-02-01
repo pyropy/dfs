@@ -14,8 +14,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: Implement some kinda Tree Structure
-// to hold file/dir metadata so users can traverse filesystem
 type ChunkServer struct {
 	*ChunkService
 	*LeaseService
@@ -221,6 +219,40 @@ func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset
 	return nil
 }
 
+func (c *ChunkServer) ReportHealth() error {
+	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
+	if err != nil {
+		log.Println("error", "unreachable")
+		return err
+	}
+
+	defer client.Close()
+
+	chunkReport := make([]master.Chunk, 0)
+	for _, chunk := range c.GetAllChunks() {
+		ch := master.Chunk{
+			ID:      chunk.ID,
+			Version: chunk.Version,
+			Index:   chunk.Index,
+		}
+		chunkReport = append(chunkReport, ch)
+	}
+
+	var reply master.ReportHealthReply
+	args := &master.ReportHealthArgs{
+		ChunkServerID: c.ChunkServerID,
+		Chunks:        chunkReport,
+	}
+
+	err = client.Call("MasterAPI.ReportHealth", args, &reply)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 // TODO: Refactor
 // ReplicateChunk replicates chunk with chunkID to list of provided chunkServers
 func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkServer.ChunkServer) error {
@@ -302,38 +334,4 @@ func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkS
 
 	wg.Wait()
 	return nil
-}
-
-func (c *ChunkServer) ReportHealth() error {
-	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
-	if err != nil {
-		log.Println("error", "unreachable")
-		return err
-	}
-
-	defer client.Close()
-
-	chunkReport := make([]master.Chunk, 0)
-	for _, chunk := range c.GetAllChunks() {
-		ch := master.Chunk{
-			ID:      chunk.ID,
-			Version: chunk.Version,
-			Index:   chunk.Index,
-		}
-		chunkReport = append(chunkReport, ch)
-	}
-
-	var reply master.ReportHealthReply
-	args := &master.ReportHealthArgs{
-		ChunkServerID: c.ChunkServerID,
-		Chunks:        chunkReport,
-	}
-
-	err = client.Call("MasterAPI.ReportHealth", args, &reply)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
 }

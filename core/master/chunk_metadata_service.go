@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrChunkNotFound = errors.New("Chunk not found.")
+	ErrChunkNotFound = errors.New("chunk not found")
 )
 
 type ChunkMetadataService struct {

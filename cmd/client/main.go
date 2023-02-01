@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
+
 	"github.com/pyropy/dfs/core/client"
-	"github.com/pyropy/dfs/core/master"
+	"github.com/pyropy/dfs/core/model"
 	"log"
 	"os"
 )
@@ -23,7 +24,7 @@ func main() {
 		return
 	}
 
-	metadata := master.filemetadataservice.NewFileMetadata(path)
+	metadata := model.NewFileMetadata(path)
 	metadata.Chunks = newFileReply.Chunks
 	c.AddNewFileMetadata(path, metadata)
 
