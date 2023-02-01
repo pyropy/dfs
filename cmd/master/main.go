@@ -1,23 +1,19 @@
 package main
 
 import (
+	masterCore "github.com/pyropy/dfs/core/master"
+	"github.com/pyropy/dfs/lib/logger"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
 	"os/signal"
 	"syscall"
-
-	masterCore "github.com/pyropy/dfs/core/master"
-	"github.com/pyropy/dfs/lib/logger"
 )
 
-func main() {
-	log, err := logger.New("master-main")
-	if err != nil {
-		panic(err)
-	}
+var log, _ = logger.New("master")
 
+func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)
 	}
@@ -25,12 +21,7 @@ func main() {
 
 func run() error {
 	master := masterCore.NewMaster()
-	masterAPI, err := NewMasterAPI(master)
-
-	log, err := logger.New("master-run")
-	if err != nil {
-		return err
-	}
+	masterAPI := NewMasterAPI(master)
 
 	rpc.Register(masterAPI)
 	rpc.HandleHTTP()

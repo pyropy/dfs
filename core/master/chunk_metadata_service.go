@@ -58,8 +58,8 @@ func (cs *ChunkMetadataService) GetChunk(chunkID uuid.UUID) (*model.ChunkMetadat
 }
 
 func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, error) {
-
 	chunk, chunkExists := cs.Chunks.Get(chunkID)
+
 	if !chunkExists {
 		return 0, ErrChunkNotFound
 	}
@@ -72,18 +72,32 @@ func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, e
 
 // UpdateChunksLocation updates chunk location on chunk server heart beat reported to master
 func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chunks []model.ChunkMetadata) {
+	chunkIds := []uuid.UUID{}
 	for _, c := range chunks {
-		chunk, chunkExists := cs.Chunks.Get(c.ID)
-		if !chunkExists {
-			cp := c
-			chunk = &cp
+		chunkIds = append(chunkIds, c.ID)
+	}
+
+	cs.Chunks.Range(func(k, v any) bool {
+		chunkID := k.(uuid.UUID)
+		chunk := v.(model.ChunkMetadata)
+		inChunkHolders := utils.Contains(chunk.ChunkServers, chunkHolder)
+		isCurrentlyHoldingChunk := utils.Contains(chunkIds, chunkID)
+
+		switch {
+		case inChunkHolders && !isCurrentlyHoldingChunk:
+			chunk.ChunkServers = utils.Remove(chunk.ChunkServers, chunkHolder)
+			log.Info("Removed")
+		case !inChunkHolders && isCurrentlyHoldingChunk:
+			chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
+			log.Info("Appended")
+		default:
+			log.Info("Nothing happened")
 		}
 
-		if !utils.Contains(chunk.ChunkServers, chunkHolder) {
-			chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
-			cs.Chunks.Set(chunk.ID, *chunk)
-		}
-	}
+		cs.Chunks.Set(chunkID, chunk)
+
+		return true
+	})
 }
 
 // RemoveChunkHolder removes given chunk holder from list of chunk holders for all chunks

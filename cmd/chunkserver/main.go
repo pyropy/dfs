@@ -13,29 +13,17 @@ import (
 	"github.com/pyropy/dfs/core/chunkserver"
 )
 
-func main() {
-	log, err := logger.New("chunk-server-main")
-	if err != nil {
-		panic(err)
-	}
+var log, _ = logger.New("chunk-server-rpc")
 
+func main() {
 	if err := run(); err != nil {
 		log.Fatalln("startup", "ERROR", err)
 	}
 }
 
 func run() error {
-	log, err := logger.New("chunk-server-run")
-	if err != nil {
-		return err
-	}
-
 	chunkServer := chunkserver.NewChunkServer()
-	chunkServerAPI, err := NewChunkServerAPI(chunkServer)
-	if err != nil {
-		log.Errorw("startup", "error", "failed to create rpc api")
-		return err
-	}
+	chunkServerAPI := NewChunkServerAPI(chunkServer)
 
 	cfg, err := GetConfig()
 	if err != nil {
