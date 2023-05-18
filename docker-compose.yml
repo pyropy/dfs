@@ -9,13 +9,13 @@ services:
     ports:
       - "1234:1234"
 
-  chunk_server_one:
+  cs1:
     build:
       context: .
       target: chunkserver
     command: [ "/app/chunkserver" ]
     environment:
-      SERVER_HOST: chunk_server_one
+      SERVER_HOST: cs1
       SERVER_PORT: 50001
       MASTER_ADDR: "master:1234"
     depends_on:
@@ -23,16 +23,44 @@ services:
     ports:
       - "1235:50001"
 
-  chunk_server_two:
+  cs2:
     build:
       context: .
       target: chunkserver
     command: [ "/app/chunkserver" ]
     environment:
-      SERVER_HOST: chunk_server_two
+      SERVER_HOST: cs2
       SERVER_PORT: 50002
       MASTER_ADDR: "master:1234"
     depends_on:
       - master
     ports:
       - "1236:50002"
+
+  cs3:
+    build:
+      context: .
+      target: chunkserver
+    command: [ "/app/chunkserver" ]
+    environment:
+      SERVER_HOST: cs3
+      SERVER_PORT: 50003
+      MASTER_ADDR: "master:1234"
+    depends_on:
+      - master
+    ports:
+      - "1237:50003"
+
+  cs4:
+    build:
+      context: .
+      target: chunkserver
+    command: [ "/app/chunkserver" ]
+    environment:
+      SERVER_HOST: cs4
+      SERVER_PORT: 50004
+      MASTER_ADDR: "master:1234"
+    depends_on:
+      - master
+    ports:
+      - "1238:50004"
