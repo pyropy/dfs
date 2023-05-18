@@ -16,10 +16,10 @@ type ChunkMetadataService struct {
 	Chunks cmap.Map[uuid.UUID, model.ChunkMetadata]
 }
 
-func NewChunkMetadataService() *ChunkMetadataService {
+func NewChunkMetadataService() (*ChunkMetadataService, error) {
 	return &ChunkMetadataService{
 		Chunks: cmap.NewMap[uuid.UUID, model.ChunkMetadata](),
-	}
+	}, nil
 }
 
 func NewChunkMetadata(chunkID uuid.UUID, index, version int, chunkServerIds []uuid.UUID) model.ChunkMetadata {

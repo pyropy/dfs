@@ -2,23 +2,28 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
-	"github.com/pyropy/dfs/core/constants"
-	"github.com/pyropy/dfs/rpc/chunkserver"
-	"github.com/pyropy/dfs/rpc/master"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/rpc"
 	"sync"
+
+	"github.com/pyropy/dfs/core/constants"
+	"github.com/pyropy/dfs/lib/logger"
+	"github.com/pyropy/dfs/rpc/chunkserver"
+	"github.com/pyropy/dfs/rpc/master"
 
 	"github.com/google/uuid"
 )
 
+
+var log, _ = logger.New("client")
+
 const ChunkSizeBytes = 64 * 10e+6
 
 var (
-	ErrFileNotFound = errors.New("File not found.")
+	ErrFileNotFound = errors.New("file not found.")
 )
 
 type Client struct {
@@ -28,16 +33,26 @@ type Client struct {
 	RpcClient *rpc.Client
 }
 
-func NewClient(masterAddr string) (*Client, error) {
+func NewClient(masterAddr string, dsPath string) (*Client, error) {
 	rpcClient, err := rpc.DialHTTP("tcp", masterAddr)
 	if err != nil {
 		return nil, err
 	}
 
+    chunkMetadataService, err := NewChunkMetadataService()
+    if err != nil {
+		return nil, err
+	}
+
+    fileMetadataService, err := NewFileMetadataService(dsPath)
+    if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		RpcClient:            rpcClient,
-		ChunkMetadataService: NewChunkMetadataService(),
-		FileMetadataService:  NewFileMetadataService(),
+		ChunkMetadataService: chunkMetadataService,
+		FileMetadataService:  fileMetadataService,
 	}, nil
 }
 
@@ -83,7 +98,12 @@ func min(x, y int) int {
 }
 
 func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, error) {
-	fileMetadata := c.FileMetadataService.Get(path)
+    ctx := context.Background()
+	fileMetadata, err := c.FileMetadataService.Get(ctx, path)
+    if err != nil {
+        return 0, err
+    }
+
 	if fileMetadata == nil {
 		return 0, ErrFileNotFound
 	}
@@ -92,10 +112,10 @@ func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, er
 	remainingBytes := data.Len()
 	chunkStartOffset := offset % constants.CHUNK_SIZE_BYTES
 
-	log.Println("debug", "client", "WriteFile", "total bytes", data.Len())
+	log.Debug("client", "WriteFile", "total bytes", data.Len())
 
 	for chunkIdx := offset / constants.CHUNK_SIZE_BYTES; remainingBytes > 0; chunkIdx++ {
-		log.Println("debug", "client", "WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
+		log.Debug("client", "WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
 		bytesToWrite := min(constants.CHUNK_SIZE_BYTES-chunkStartOffset, remainingBytes)
 		b, err := ioutil.ReadAll(io.LimitReader(data, int64(bytesToWrite)))
 		if err != nil {
