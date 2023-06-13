@@ -1,11 +1,16 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"time"
+)
 
 type FileMetadata struct {
-	ID     uuid.UUID
-	Path   string
-	Chunks []uuid.UUID
+	ID        uuid.UUID
+	Path      string
+	Chunks    []uuid.UUID
+	Deleted   bool
+	DeletedAt time.Time
 }
 
 type FilePath = string

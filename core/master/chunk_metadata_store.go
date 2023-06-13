@@ -12,12 +12,12 @@ var (
 	ErrChunkNotFound = errors.New("chunk not found")
 )
 
-type ChunkMetadataService struct {
+type ChunkMetadataStore struct {
 	Chunks cmap.Map[uuid.UUID, model.ChunkMetadata]
 }
 
-func NewChunkMetadataService() *ChunkMetadataService {
-	return &ChunkMetadataService{
+func NewChunkMetadataStore() *ChunkMetadataStore {
+	return &ChunkMetadataStore{
 		Chunks: cmap.NewMap[uuid.UUID, model.ChunkMetadata](),
 	}
 }
@@ -33,11 +33,11 @@ func NewChunkMetadata(chunkID uuid.UUID, index, version int, chunkServerIds []uu
 	}
 }
 
-func (cs *ChunkMetadataService) AddNewChunkMetadata(chunk model.ChunkMetadata) {
+func (cs *ChunkMetadataStore) AddNewChunkMetadata(chunk model.ChunkMetadata) {
 	cs.Chunks.Set(chunk.ID, chunk)
 }
 
-func (cs *ChunkMetadataService) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
+func (cs *ChunkMetadataStore) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
 	chunk, chunkExists := cs.Chunks.Get(chunkID)
 
 	if !chunkExists {
@@ -47,7 +47,7 @@ func (cs *ChunkMetadataService) GetChunkHolders(chunkID uuid.UUID) []uuid.UUID {
 	return chunk.ChunkServers
 }
 
-func (cs *ChunkMetadataService) GetChunk(chunkID uuid.UUID) (*model.ChunkMetadata, error) {
+func (cs *ChunkMetadataStore) GetChunk(chunkID uuid.UUID) (*model.ChunkMetadata, error) {
 
 	chunk, chunkExists := cs.Chunks.Get(chunkID)
 	if !chunkExists {
@@ -57,7 +57,7 @@ func (cs *ChunkMetadataService) GetChunk(chunkID uuid.UUID) (*model.ChunkMetadat
 	return chunk, nil
 }
 
-func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, error) {
+func (cs *ChunkMetadataStore) IncrementChunkVersion(chunkID uuid.UUID) (int, error) {
 	chunk, chunkExists := cs.Chunks.Get(chunkID)
 
 	if !chunkExists {
@@ -71,7 +71,7 @@ func (cs *ChunkMetadataService) IncrementChunkVersion(chunkID uuid.UUID) (int, e
 }
 
 // UpdateChunksLocation updates chunk location on chunk server heart beat reported to master
-func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chunks []model.ChunkMetadata) {
+func (cs *ChunkMetadataStore) UpdateChunksLocation(chunkHolder uuid.UUID, chunks []model.ChunkMetadata) {
 	chunkIds := []uuid.UUID{}
 	for _, c := range chunks {
 		chunkIds = append(chunkIds, c.ID)
@@ -101,7 +101,7 @@ func (cs *ChunkMetadataService) UpdateChunksLocation(chunkHolder uuid.UUID, chun
 }
 
 // RemoveChunkHolder removes given chunk holder from list of chunk holders for all chunks
-func (cs *ChunkMetadataService) RemoveChunkHolder(chunkHolderID uuid.UUID) {
+func (cs *ChunkMetadataStore) RemoveChunkHolder(chunkHolderID uuid.UUID) {
 	cs.Chunks.Range(func(k, v any) bool {
 		chunkMetadata := v.(model.ChunkMetadata)
 		chunkServers := make([]uuid.UUID, 0)

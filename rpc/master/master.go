@@ -11,6 +11,8 @@ type Master interface {
 	RegisterChunkServer(args RegisterArgs, reply RegisterReply) error
 	// CreateNewFile ...
 	CreateNewFile(args CreateNewFileArgs, reply CreateNewFileReply) error
+	// DeleteFile ...
+	DeleteFile(args DeleteFileArgs, reply DeleteFileReply) error
 	// RequestLeaseRenewal ...
 	RequestLeaseRenewal(args RequestLeaseRenewalArgs, reply RequestLeaseRenewalReply) error
 	// RequestWrite ...
@@ -77,4 +79,11 @@ type ReportHealthArgs struct {
 }
 
 type ReportHealthReply struct {
+}
+
+type DeleteFileArgs struct {
+	Path string
+}
+
+type DeleteFileReply struct {
 }

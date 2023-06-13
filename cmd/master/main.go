@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	masterCore "github.com/pyropy/dfs/core/master"
 	"github.com/pyropy/dfs/lib/logger"
 	"net"
@@ -20,6 +21,9 @@ func main() {
 }
 
 func run() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	master := masterCore.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
@@ -35,11 +39,14 @@ func run() error {
 	defer log.Infow("shutdown", "status", "master rpc server stopped", "address", l.Addr().String())
 	go http.Serve(l, nil)
 
-	log.Infow("startup", "status", "starting healtcheck")
-	go master.StartHealthCheck()
+	log.Infow("startup", "status", "starting health-check")
+	go master.StartHealthCheck(ctx)
 
 	log.Infow("startup", "status", "starting replication monitor")
-	go master.StartReplicationMonitor()
+	go master.StartReplicationMonitor(ctx)
+
+	log.Infow("startup", "status", "starting garbage collection")
+	go master.StartGC(ctx)
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)

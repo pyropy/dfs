@@ -21,25 +21,25 @@ type ChunkServerMetadata struct {
 	LastHealthReport   time.Time
 }
 
-type ChunkServerMetadataService struct {
+type ChunkServerMetadataStore struct {
 	Leases       cmap.Map[uuid.UUID, model.Lease]
 	ChunkServers cmap.Map[uuid.UUID, ChunkServerMetadata]
 }
 
-func NewChunkServerMetadataService() *ChunkServerMetadataService {
-	return &ChunkServerMetadataService{
+func NewChunkServerMetadataStore() *ChunkServerMetadataStore {
+	return &ChunkServerMetadataStore{
 		Leases:       cmap.NewMap[uuid.UUID, model.Lease](),
 		ChunkServers: cmap.NewMap[uuid.UUID, ChunkServerMetadata](),
 	}
 }
 
-func (m *ChunkServerMetadataService) RegisterNewChunkServer(addr string) *ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) RegisterNewChunkServer(addr string) *ChunkServerMetadata {
 	chunkServerMetadata := ChunkServerMetadata{ID: uuid.New(), Address: addr, Healthy: true, Active: true, LastHealthReport: time.Now()}
 	m.ChunkServers.Set(chunkServerMetadata.ID, chunkServerMetadata)
 	return &chunkServerMetadata
 }
 
-func (m *ChunkServerMetadataService) GetAllActiveChunkServers() []ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) GetAllActiveChunkServers() []ChunkServerMetadata {
 	chunkServerList := make([]ChunkServerMetadata, 0)
 	m.ChunkServers.Range(func(k, v any) bool {
 		cs := v.(ChunkServerMetadata)
@@ -54,7 +54,7 @@ func (m *ChunkServerMetadataService) GetAllActiveChunkServers() []ChunkServerMet
 	return chunkServerList
 }
 
-func (m *ChunkServerMetadataService) SelectChunkServers(num int, excludedChunkServers []uuid.UUID) []ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) SelectChunkServers(num int, excludedChunkServers []uuid.UUID) []ChunkServerMetadata {
 	result := make([]ChunkServerMetadata, 0, num)
 	chunkServers := m.GetAllActiveChunkServers()
 
@@ -72,7 +72,7 @@ func (m *ChunkServerMetadataService) SelectChunkServers(num int, excludedChunkSe
 	return result[:num-1]
 }
 
-func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.UUID) *ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) GetChunkServerMetadata(chunkServerID uuid.UUID) *ChunkServerMetadata {
 	chunkServerMetadata, exists := m.ChunkServers.Get(chunkServerID)
 	if !exists {
 		return nil
@@ -81,7 +81,7 @@ func (m *ChunkServerMetadataService) GetChunkServerMetadata(chunkServerID uuid.U
 	return chunkServerMetadata
 }
 
-func (m *ChunkServerMetadataService) MarkHealthy(chunkServerID uuid.UUID) *ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) MarkHealthy(chunkServerID uuid.UUID) *ChunkServerMetadata {
 	chunkServer, exists := m.ChunkServers.Get(chunkServerID)
 	if !exists {
 		return nil
@@ -95,7 +95,7 @@ func (m *ChunkServerMetadataService) MarkHealthy(chunkServerID uuid.UUID) *Chunk
 	return chunkServer
 }
 
-func (m *ChunkServerMetadataService) MarkUnhealthy(chunkServerID uuid.UUID) *ChunkServerMetadata {
+func (m *ChunkServerMetadataStore) MarkUnhealthy(chunkServerID uuid.UUID) *ChunkServerMetadata {
 	chunkServer, exists := m.ChunkServers.Get(chunkServerID)
 	if !exists {
 		return nil

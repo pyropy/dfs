@@ -7,17 +7,17 @@ import (
 
 // TODO: Implement some kinda Tree Structure
 // to hold file/dir metadata so users can traverse filesystem
-type FileMetadataService struct {
+type FileMetadataStore struct {
 	Files cmap.Map[model.FilePath, model.FileMetadata]
 }
 
-func NewFileMetadataService() *FileMetadataService {
-	return &FileMetadataService{
+func NewFileMetadataStore() *FileMetadataStore {
+	return &FileMetadataStore{
 		Files: cmap.NewMap[model.FilePath, model.FileMetadata](),
 	}
 }
 
-func (f *FileMetadataService) Get(filePath string) *model.FileMetadata {
+func (f *FileMetadataStore) Get(filePath string) *model.FileMetadata {
 	file, exists := f.Files.Get(filePath)
 	if !exists {
 		return nil
@@ -26,11 +26,11 @@ func (f *FileMetadataService) Get(filePath string) *model.FileMetadata {
 	return file
 }
 
-func (f *FileMetadataService) CheckFileExists(filePath model.FilePath) bool {
+func (f *FileMetadataStore) CheckFileExists(filePath model.FilePath) bool {
 	_, fileExists := f.Files.Get(filePath)
 	return fileExists
 }
 
-func (f *FileMetadataService) AddNewFileMetadata(filePath model.FilePath, metadata model.FileMetadata) {
+func (f *FileMetadataStore) AddNewFileMetadata(filePath model.FilePath, metadata model.FileMetadata) {
 	f.Files.Set(filePath, metadata)
 }

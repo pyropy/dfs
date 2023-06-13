@@ -7,7 +7,6 @@ import (
 	masterRPC "github.com/pyropy/dfs/rpc/master"
 )
 
-
 type MasterAPI struct {
 	Master *masterCore.Master
 }
@@ -37,6 +36,11 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 
 	reply.Chunks = file.Chunks
 	reply.ChunkServerIDs = chunkServerIds
+	return nil
+}
+
+func (m *MasterAPI) DeleteFile(args *masterRPC.DeleteFileArgs, reply *masterRPC.DeleteFileReply) error {
+	log.Infow("rpc", "event", "DeleteFile", "args", args)
 	return nil
 }
 
@@ -106,5 +110,3 @@ func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.
 
 	return nil
 }
-
-

@@ -81,8 +81,16 @@ type ReplicateChunkArgs struct {
 type ReplicateChunkReply struct {
 }
 
+type DeleteChunkRequest struct {
+	ChunkID uuid.UUID
+}
+
+type DeleteChunkReply struct {
+}
+
 type IChunkServer interface {
 	CreateChunk(args *CreateChunkRequest, reply *CreateChunkReply) error
+	DeleteChunk(args *DeleteChunkRequest, reply *DeleteChunkReply) error
 	GrantLease(args *GrantLeaseArgs, reply *GrantLeaseReply) error
 	IncrementChunkVersion(args *IncrementChunkVersionArgs, reply *IncrementChunkVersionReply) error
 	TransferData(args *TransferDataArgs, reply *TransferDataReply) error

@@ -1,6 +1,5 @@
 package main
 
-
 import (
 	"github.com/pyropy/dfs/core/chunkserver"
 	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
@@ -27,6 +26,13 @@ func (c *ChunkServerAPI) CreateChunk(args *chunkServerRPC.CreateChunkRequest, re
 	reply.ChunkID = chunk.ID
 	reply.ChunkIndex = chunk.Index
 	reply.ChunkVersion = chunk.Version
+
+	return nil
+}
+
+// DeleteChunk ...
+func (c *ChunkServerAPI) DeleteChunk(args *chunkServerRPC.DeleteChunkRequest, reply *chunkServerRPC.DeleteChunkReply) error {
+	log.Infow("rpc", "event", "ChunkServerAPI.DeleteChunk", "args", args)
 
 	return nil
 }
@@ -98,4 +104,3 @@ func (c *ChunkServerAPI) ReplicateChunk(args *chunkServerRPC.ReplicateChunkArgs,
 
 	return nil
 }
-

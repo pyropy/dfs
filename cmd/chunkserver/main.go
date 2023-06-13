@@ -22,6 +22,7 @@ func main() {
 }
 
 func run() error {
+	//ctx, cancel := context.WithCancel(context.Background())
 	chunkServer := chunkserver.NewChunkServer()
 	chunkServerAPI := NewChunkServerAPI(chunkServer)
 

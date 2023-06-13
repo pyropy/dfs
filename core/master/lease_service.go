@@ -15,23 +15,23 @@ var (
 )
 
 // Manages leases
-type LeaseService struct {
+type LeaseStore struct {
 	Leases cmap.Map[uuid.UUID, model.Lease]
 }
 
-func NewLeaseService() *LeaseService {
-	return &LeaseService{
+func NewLeaseStore() *LeaseStore {
+	return &LeaseStore{
 		Leases: cmap.NewMap[uuid.UUID, model.Lease](),
 	}
 }
 
 // GetHolder returns lease holder for chunk id if any
-func (ls *LeaseService) GetHolder(chunkID uuid.UUID) (*model.Lease, bool) {
+func (ls *LeaseStore) GetHolder(chunkID uuid.UUID) (*model.Lease, bool) {
 	return ls.Leases.Get(chunkID)
 }
 
-// HaveLease checks if chunk servers has lease over chunk for given chunk ID
-func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
+// HasLease checks if chunk servers has lease over chunk for given chunk ID
+func (ls *LeaseStore) HasLease(chunkID uuid.UUID) bool {
 	lease, leaseExists := ls.Leases.Get(chunkID)
 	if !leaseExists {
 		return false
@@ -42,7 +42,7 @@ func (ls *LeaseService) HaveLease(chunkID uuid.UUID) bool {
 }
 
 // GrantLease grants lease over chunk for period of time
-func (ls *LeaseService) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) *model.Lease {
+func (ls *LeaseStore) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) *model.Lease {
 	validFor := 60 * time.Second
 	validUntil := time.Now().Add(validFor)
 
@@ -58,7 +58,7 @@ func (ls *LeaseService) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMe
 
 // ExtendLease extends lease for a given chunkID if chunkserver
 // requesting extension previously had lase over the chunk
-func (ls *LeaseService) ExtendLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*model.Lease, error) {
+func (ls *LeaseStore) ExtendLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*model.Lease, error) {
 	prevLease, leaseExists := ls.Leases.Get(chunkID)
 
 	if !leaseExists {
