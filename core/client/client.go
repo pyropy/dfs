@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 )
 
-
 var log, _ = logger.New("client")
 
 const ChunkSizeBytes = 64 * 10e+6
@@ -27,8 +26,8 @@ var (
 )
 
 type Client struct {
-	*ChunkMetadataService
-	*FileMetadataService
+	*ChunkMetadataStore
+	*FileMetadataStore
 
 	RpcClient *rpc.Client
 }
@@ -39,20 +38,20 @@ func NewClient(masterAddr string, dsPath string) (*Client, error) {
 		return nil, err
 	}
 
-    chunkMetadataService, err := NewChunkMetadataService()
-    if err != nil {
+	chunkMetadataService, err := NewChunkMetadataStore()
+	if err != nil {
 		return nil, err
 	}
 
-    fileMetadataService, err := NewFileMetadataService(dsPath)
-    if err != nil {
+	fileMetadataService, err := NewFileMetadataStore(dsPath)
+	if err != nil {
 		return nil, err
 	}
 
 	return &Client{
-		RpcClient:            rpcClient,
-		ChunkMetadataService: chunkMetadataService,
-		FileMetadataService:  fileMetadataService,
+		RpcClient:          rpcClient,
+		ChunkMetadataStore: chunkMetadataService,
+		FileMetadataStore:  fileMetadataService,
 	}, nil
 }
 
@@ -98,11 +97,11 @@ func min(x, y int) int {
 }
 
 func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, error) {
-    ctx := context.Background()
-	fileMetadata, err := c.FileMetadataService.Get(ctx, path)
-    if err != nil {
-        return 0, err
-    }
+	ctx := context.Background()
+	fileMetadata, err := c.FileMetadataStore.Get(ctx, path)
+	if err != nil {
+		return 0, err
+	}
 
 	if fileMetadata == nil {
 		return 0, ErrFileNotFound
