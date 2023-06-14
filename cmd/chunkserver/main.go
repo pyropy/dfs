@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/pyropy/dfs/lib/logger"
 	"net"
@@ -22,7 +23,9 @@ func main() {
 }
 
 func run() error {
-	//ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	chunkServer := chunkserver.NewChunkServer()
 	chunkServerAPI := NewChunkServerAPI(chunkServer)
 
@@ -55,10 +58,10 @@ func run() error {
 	}
 
 	// Start monitoring lease expiry
-	go chunkServer.MonitorExpiredLeases()
+	go chunkServer.StartLeaseMonitor(ctx)
 
 	// Start reporting health to master
-	go chunkServer.StartHealthReport()
+	go chunkServer.StartHealthReport(ctx)
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)

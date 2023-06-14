@@ -1,6 +1,7 @@
 package chunkserver
 
 import (
+	"context"
 	"errors"
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/cache"
@@ -16,13 +17,14 @@ import (
 
 type ChunkServer struct {
 	*ChunkService
-	*LeaseService
+	*LeaseStore
+	*HealthMonitorService
+	*LeaseMonitorService
 
 	Mutex         sync.RWMutex
 	LRU           *cache.LRU
 	MasterAddr    string
 	ChunkServerID uuid.UUID
-	LeaseExpChan  chan *model.Lease
 }
 
 var (
@@ -33,13 +35,16 @@ var (
 )
 
 func NewChunkServer() *ChunkServer {
-	leaseExpChan := make(chan *model.Lease)
+	leaseExpChan := make(chan model.Lease)
+	chunkStore := NewChunkService()
+	leaseStore := NewLeaseStore()
 
 	return &ChunkServer{
-		LeaseExpChan: leaseExpChan,
-		LRU:          cache.NewLRU(100),
-		ChunkService: NewChunkService(),
-		LeaseService: NewLeaseService(leaseExpChan),
+		ChunkService:         chunkStore,
+		LeaseStore:           leaseStore,
+		LRU:                  cache.NewLRU(100),
+		HealthMonitorService: NewHealthReportService(chunkStore),
+		LeaseMonitorService:  NewLeaseMonitor(leaseStore, leaseExpChan),
 	}
 }
 
@@ -76,7 +81,7 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	}
 
 	// If primary notify other holders to apply migration
-	if !c.HaveLease(chunkID) {
+	if !c.HasLease(chunkID) {
 		return bytesWritten, nil
 	}
 
@@ -101,7 +106,7 @@ func (c *ChunkServer) GrantLease(chunkID uuid.UUID, validUntil time.Time) error 
 		return ErrChunkDoesNotExist
 	}
 
-	c.LeaseService.GrantLease(chunkID, validUntil)
+	c.LeaseStore.GrantLease(chunkID, validUntil)
 
 	return nil
 }
@@ -113,31 +118,12 @@ func (c *ChunkServer) ReceiveBytes(data []byte, checksum int) error {
 	return nil
 }
 
-func (c *ChunkServer) MonitorExpiredLeases() {
-	go c.MonitorLeases()
-
-	for {
-		select {
-		case lease := <-c.leaseExpChan:
-			err := c.RequestLeaseRenewal(lease)
-			if err != nil {
-				log.Println("error", "chunkServer", "lease renewal failed", lease, err)
-			}
-		default:
-		}
-	}
+func (c *ChunkServer) StartLeaseMonitor(ctx context.Context) {
+	c.LeaseMonitorService.Start(ctx)
 }
 
-// StartHealthReport creates ticker that ticks every 10 seconds and triggers ReportHealth func in new goroutine
-func (c *ChunkServer) StartHealthReport() {
-	ticker := time.NewTicker(10 * time.Second)
-
-	for {
-		select {
-		case _ = <-ticker.C:
-			go c.ReportHealth()
-		}
-	}
+func (c *ChunkServer) StartHealthReport(ctx context.Context) {
+	c.HealthMonitorService.Start(ctx)
 }
 
 // RegisterChunkServer registers chunk server instance with Master API
@@ -152,6 +138,8 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 	}
 
 	c.MasterAddr = masterAddr
+	c.HealthMonitorService.masterAddr = masterAddr
+	c.LeaseMonitorService.masterAddr = masterAddr
 
 	var reply master.RegisterReply
 	args := &master.RegisterArgs{Address: addr}
@@ -161,36 +149,9 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 	}
 
 	c.ChunkServerID = reply.ID
+	c.HealthMonitorService.chunkServerID = reply.ID
+	c.LeaseMonitorService.chunkServerID = reply.ID
 
-	return nil
-}
-
-// RequestLeaseRenewal requests renewal for given lease from master
-func (c *ChunkServer) RequestLeaseRenewal(lease *model.Lease) error {
-	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
-	if err != nil {
-		log.Println("error", "unreachable")
-		return err
-	}
-
-	var reply master.RequestLeaseRenewalReply
-	args := &master.RequestLeaseRenewalArgs{
-		ChunkID:       lease.ChunkID,
-		ChunkServerID: c.ChunkServerID,
-	}
-
-	err = client.Call("MasterAPI.RequestLeaseRenewal", args, &reply)
-	if err != nil {
-		return err
-	}
-
-	if !reply.Granted {
-		return ErrChunkLeaseNotGranted
-	}
-
-	c.LeaseService.GrantLease(reply.ChunkID, reply.ValidUntil)
-
-	log.Println("info", "chunkServer", "lease granted", reply.ChunkID, reply.ValidUntil)
 	return nil
 }
 
@@ -217,40 +178,6 @@ func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset
 	}
 
 	return nil
-}
-
-func (c *ChunkServer) ReportHealth() error {
-	client, err := rpc.DialHTTP("tcp", c.MasterAddr)
-	if err != nil {
-		log.Println("error", "unreachable")
-		return err
-	}
-
-	defer client.Close()
-
-	chunkReport := make([]master.Chunk, 0)
-	for _, chunk := range c.GetAllChunks() {
-		ch := master.Chunk{
-			ID:      chunk.ID,
-			Version: chunk.Version,
-			Index:   chunk.Index,
-		}
-		chunkReport = append(chunkReport, ch)
-	}
-
-	var reply master.ReportHealthReply
-	args := &master.ReportHealthArgs{
-		ChunkServerID: c.ChunkServerID,
-		Chunks:        chunkReport,
-	}
-
-	err = client.Call("MasterAPI.ReportHealth", args, &reply)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
 }
 
 // TODO: Refactor
