@@ -42,6 +42,9 @@ func run() error {
 	log.Infow("startup", "status", "starting health-check")
 	go master.StartHealthCheck(ctx)
 
+	log.Infow("startup", "status", "starting deletion monitor")
+	go master.StartDeletionMonitor(ctx)
+
 	log.Infow("startup", "status", "starting replication monitor")
 	go master.StartReplicationMonitor(ctx)
 

@@ -2,32 +2,33 @@ package master
 
 import (
 	"context"
-	"fmt"
 	"github.com/pyropy/dfs/core/model"
 	"time"
 )
 
-type GC struct {
+type DeletionMonitor struct {
 	fileStore *FileMetadataStore
 }
 
 var (
-	DeletionThreshold = time.Second * 86400
+	FileDeletionThreshold = time.Second * 86400
 )
 
-func NewGC(fileStore *FileMetadataStore) *GC {
-	return &GC{
+// NewDeletionMonitor creates new deletion monitor responsible for deleting file metadata
+// for files that have been tagged for deletion for more then three days
+func NewDeletionMonitor(fileStore *FileMetadataStore) *DeletionMonitor {
+	return &DeletionMonitor{
 		fileStore: fileStore,
 	}
 }
 
-// Start starts GC loop where all files are checked each 60 sec.
+// Start starts deletion monitor loop where all files are checked each 60 sec.
 // If file is marked for deletion then its sent to deletion channel.
-func (gc *GC) Start(ctx context.Context) error {
+func (gc *DeletionMonitor) Start(ctx context.Context) error {
 	ticker := time.NewTicker(60 * time.Second)
 	deletionChan := make(chan model.FileMetadata)
 
-	log.Info("starting gc service")
+	log.Info("starting deletion monitor service")
 
 	for {
 		select {
@@ -36,16 +37,15 @@ func (gc *GC) Start(ctx context.Context) error {
 		case <-ticker.C:
 			go gc.filterDeletedFiles(deletionChan)
 		case f := <-deletionChan:
-			shouldDelete := gc.isForDeletion(f)
-			if shouldDelete {
-				go gc.sweep(f)
+			if forDeletion := gc.isForDeletion(f); forDeletion {
+				gc.fileStore.DeleteFile(f.Path)
 			}
 		}
 	}
 }
 
 // filterDeletedFiles filters all files to and sends files marked for deletion to deletion channel
-func (gc *GC) filterDeletedFiles(d chan model.FileMetadata) {
+func (gc *DeletionMonitor) filterDeletedFiles(d chan model.FileMetadata) {
 	gc.fileStore.Files.Range(func(k, v any) bool {
 		f := v.(model.FileMetadata)
 		if f.Deleted {
@@ -57,15 +57,7 @@ func (gc *GC) filterDeletedFiles(d chan model.FileMetadata) {
 }
 
 // isForDeletion checks if file has been deleted before now - threshold period
-func (gc *GC) isForDeletion(f model.FileMetadata) bool {
-	deleteAfter := time.Now().Add(-DeletionThreshold)
+func (gc *DeletionMonitor) isForDeletion(f model.FileMetadata) bool {
+	deleteAfter := time.Now().Add(-FileDeletionThreshold)
 	return f.Deleted && f.DeletedAt.Before(deleteAfter)
-}
-
-// sweep performs delete of file
-func (gc *GC) sweep(f model.FileMetadata) {
-	// TODO: get chunk holders for each chunk and send them deletion request
-	for _, c := range f.Chunks {
-		fmt.Println(c)
-	}
 }

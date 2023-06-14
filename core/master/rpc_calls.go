@@ -39,6 +39,15 @@ func incrementChunkVersion(chunkID uuid.UUID, version int, chunkServer *ChunkSer
 	return callChunkServerRPC(chunkServer, "ChunkServerAPI.IncrementChunkVersion", args, &reply)
 }
 
+func deleteChunk(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) error {
+	args := chunkServerRPC.DeleteChunkRequest{
+		ChunkID: chunkID,
+	}
+	reply := chunkServerRPC.DeleteChunkReply{}
+
+	return callChunkServerRPC(chunkServer, "ChunkServerAPI.DeleteChunk", args, &reply)
+}
+
 func callChunkServerRPC(chunkServer *ChunkServerMetadata, method string, args interface{}, reply interface{}) error {
 	client, err := rpc.DialHTTP("tcp", chunkServer.Address)
 	if err != nil {

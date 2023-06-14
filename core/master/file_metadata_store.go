@@ -34,3 +34,7 @@ func (f *FileMetadataStore) CheckFileExists(filePath model.FilePath) bool {
 func (f *FileMetadataStore) AddNewFileMetadata(filePath model.FilePath, metadata model.FileMetadata) {
 	f.Files.Set(filePath, metadata)
 }
+
+func (f *FileMetadataStore) DeleteFile(filePath model.FilePath) {
+	f.Files.Delete(filePath)
+}

@@ -2,67 +2,64 @@ package master
 
 import (
 	"context"
-	"fmt"
 	"github.com/pyropy/dfs/core/model"
 	"time"
 )
 
 type GC struct {
-	fileStore *FileMetadataStore
+	fileStore            *FileMetadataStore
+	chunkMetaStore       *ChunkMetadataStore
+	chunkServerMetaStore *ChunkServerMetadataStore
 }
 
-var (
-	DeletionThreshold = time.Second * 86400
-)
-
-func NewGC(fileStore *FileMetadataStore) *GC {
+func NewGC(fileStore *FileMetadataStore, chunkMetaStore *ChunkMetadataStore, chunkServerMetaStore *ChunkServerMetadataStore) *GC {
 	return &GC{
-		fileStore: fileStore,
+		fileStore:            fileStore,
+		chunkMetaStore:       chunkMetaStore,
+		chunkServerMetaStore: chunkServerMetaStore,
 	}
 }
 
-// Start starts GC loop where all files are checked each 60 sec.
-// If file is marked for deletion then its sent to deletion channel.
+// Start starts GC loop where all chunks are checked each 60 sec.
+// If chunk is orphaned then it is sent to deletion channel.
 func (gc *GC) Start(ctx context.Context) error {
 	ticker := time.NewTicker(60 * time.Second)
-	deletionChan := make(chan model.FileMetadata)
+	deletionChan := make(chan model.ChunkMetadata)
+
+	log.Info("starting gc service")
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			go gc.filterDeletedFiles(deletionChan)
+			go gc.findOrphanedChunks(deletionChan)
 		case f := <-deletionChan:
-			shouldDelete := gc.isForDeletion(f)
-			if shouldDelete {
-				go gc.sweep(f)
-			}
+			go gc.sweep(f)
 		}
 	}
 }
 
-// filterDeletedFiles filters all files to and sends files marked for deletion to deletion channel
-func (gc *GC) filterDeletedFiles(d chan model.FileMetadata) {
-	gc.fileStore.Files.Range(func(k, v any) bool {
-		f := v.(model.FileMetadata)
-		if f.Deleted {
-			d <- f
+// findOrphanedChunks goes drought all chunks to and sends orphaned chunks to deletion channel
+func (gc *GC) findOrphanedChunks(d chan model.ChunkMetadata) {
+	gc.chunkMetaStore.Chunks.Range(func(k any, v any) bool {
+		c := v.(model.ChunkMetadata)
+
+		if hasParent := gc.fileStore.CheckFileExists(c.FilePath); !hasParent {
+			d <- c
 		}
 
 		return true
 	})
 }
 
-// isForDeletion checks if file has been deleted before now - threshold period
-func (gc *GC) isForDeletion(f model.FileMetadata) bool {
-	deleteAfter := time.Now().Add(-DeletionThreshold)
-	return f.Deleted && f.DeletedAt.Before(deleteAfter)
-}
-
-// sweep performs delete of file
-func (gc *GC) sweep(f model.FileMetadata) {
-	// TODO: get chunk holders for each chunk and send them deletion request
-	for _, c := range f.Chunks {
-		fmt.Println(c)
+// sweep performs delete of a chunk
+func (gc *GC) sweep(f model.ChunkMetadata) {
+	for _, csId := range f.ChunkServers {
+		cs := gc.chunkServerMetaStore.GetChunkServerMetadata(csId)
+		// TODO: Create some retry queue and or workerpool
+		if err := deleteChunk(f.ID, cs); err != nil {
+			log.Error("Error when deleting chunk", "chunkId", f.ID.String(), "chunkServerId", csId.String())
+		}
 	}
 }

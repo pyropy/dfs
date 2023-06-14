@@ -17,6 +17,7 @@ type Master struct {
 	*ChunkServerMetadataStore
 	*GC
 	*HealthCheckService
+	*DeletionMonitor
 	*ReplicationMonitor
 }
 
@@ -37,12 +38,13 @@ func NewMaster() *Master {
 	fileMetadataStore := NewFileMetadataStore()
 
 	return &Master{
-		GC:                       NewGC(fileMetadataStore),
 		LeaseStore:               leaseService,
 		FileMetadataStore:        fileMetadataStore,
 		ChunkMetadataStore:       chunkMetadataStore,
 		ChunkServerMetadataStore: chunkServerMetadataStore,
+		GC:                       NewGC(fileMetadataStore, chunkMetadataStore, chunkServerMetadataStore),
 		HealthCheckService:       NewHealthCheckService(chunkServerMetadataStore, chunkMetadataStore),
+		DeletionMonitor:          NewDeletionMonitor(fileMetadataStore),
 		ReplicationMonitor:       NewReplicationMonitor(chunkMetadataStore, leaseService, chunkServerMetadataStore),
 	}
 }
@@ -87,8 +89,8 @@ func (m *Master) CreateNewFile(filePath string, fileSizeBytes, repFactor, chunkS
 	m.FileMetadataStore.AddNewFileMetadata(filePath, fileMetadata)
 
 	// Add chunk metadata for each chunk created
-	for _, chunkMetadata := range chunkMetadata {
-		m.ChunkMetadataStore.AddNewChunkMetadata(chunkMetadata)
+	for _, meta := range chunkMetadata {
+		m.ChunkMetadataStore.AddNewChunkMetadata(meta)
 	}
 
 	return &fileMetadata, chunkServerIds, nil
@@ -134,6 +136,10 @@ func (m *Master) RequestLeaseRenewal(chunkID uuid.UUID, chunkServer *ChunkServer
 
 func (m *Master) StartHealthCheck(ctx context.Context) {
 	m.HealthCheckService.Start(ctx)
+}
+
+func (m *Master) StartDeletionMonitor(ctx context.Context) {
+	m.DeletionMonitor.Start(ctx)
 }
 
 func (m *Master) StartReplicationMonitor(ctx context.Context) {

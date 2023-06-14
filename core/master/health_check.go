@@ -25,6 +25,7 @@ func NewHealthCheckService(cs *ChunkServerMetadataStore, cm *ChunkMetadataStore)
 func (hs *HealthCheckService) Start(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Second)
 	unhealthyChan := make(chan uuid.UUID)
+	log.Info("starting health check service")
 
 	for {
 		select {
