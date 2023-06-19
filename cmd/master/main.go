@@ -27,7 +27,12 @@ func run() error {
 	master := masterCore.NewMaster()
 	masterAPI := NewMasterAPI(master)
 
-	rpc.Register(masterAPI)
+	err := rpc.Register(masterAPI)
+	if err != nil {
+		log.Errorw("startup", "error", "failed to register rpc api")
+		return err
+	}
+
 	rpc.HandleHTTP()
 	l, err := net.Listen("tcp", ":1234")
 	if err != nil {

@@ -55,7 +55,8 @@ func (m *ChunkServerMetadataStore) GetAllActiveChunkServers() []ChunkServerMetad
 }
 
 func (m *ChunkServerMetadataStore) SelectChunkServers(num int, excludedChunkServers []uuid.UUID) []ChunkServerMetadata {
-	result := make([]ChunkServerMetadata, 0, num)
+	// TODO: Optimise by implementing some kinda priority queue
+	result := make([]ChunkServerMetadata, 0)
 	chunkServers := m.GetAllActiveChunkServers()
 
 	for _, cs := range chunkServers {
@@ -69,7 +70,11 @@ func (m *ChunkServerMetadataStore) SelectChunkServers(num int, excludedChunkServ
 		}
 	}
 
-	return result[:num-1]
+	if len(result) > num {
+		return result[:num-1]
+	}
+
+	return result
 }
 
 func (m *ChunkServerMetadataStore) GetChunkServerMetadata(chunkServerID uuid.UUID) *ChunkServerMetadata {

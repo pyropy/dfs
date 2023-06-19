@@ -26,16 +26,21 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	chunkServer := chunkserver.NewChunkServer()
-	chunkServerAPI := NewChunkServerAPI(chunkServer)
-
-	cfg, err := GetConfig()
+	cfg, err := chunkserver.GetConfig()
 	if err != nil {
 		log.Errorw("startup", "error", "config error")
 		return err
 	}
 
-	rpc.Register(chunkServerAPI)
+	chunkServer := chunkserver.NewChunkServer(cfg)
+	chunkServerAPI := NewChunkServerAPI(chunkServer)
+
+	err = rpc.Register(chunkServerAPI)
+	if err != nil {
+		log.Errorw("startup", "error", "failed to register rpc api")
+		return err
+	}
+
 	rpc.HandleHTTP()
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 

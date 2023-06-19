@@ -12,6 +12,7 @@ import (
 )
 
 type ChunkService struct {
+	Cfg    *Config
 	Chunks cmap.Map[uuid.UUID, model.Chunk]
 }
 
@@ -19,8 +20,9 @@ var (
 	ErrChunkDoesNotExist = errors.New("Chunk does not exist")
 )
 
-func NewChunkService() *ChunkService {
+func NewChunkService(cfg *Config) *ChunkService {
 	return &ChunkService{
+		Cfg:    cfg,
 		Chunks: cmap.NewMap[uuid.UUID, model.Chunk](),
 	}
 }
@@ -29,22 +31,22 @@ func GetChunkFilename(id uuid.UUID, index, version int) string {
 	return fmt.Sprintf("%s-%d-%d.chunk", id, index, version)
 }
 
-func GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
+func (cs *ChunkService) GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
 	filename := GetChunkFilename(id, index, version)
-	filepath := fp.Join("chunks", filePath, filename)
+	filepath := fp.Join(cs.Cfg.Chunks.Path, filePath, filename)
 
 	return filepath
 }
 
 func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*model.Chunk, error) {
 	// create chunks parent path dir
-	chunksParentPath := fp.Join("chunks", filePath)
+	chunksParentPath := fp.Join(cs.Cfg.Chunks.Path, filePath)
 	err := os.MkdirAll(chunksParentPath, 0750)
 	if err != nil && !os.IsExist(err) {
 		log.Fatal(err)
 	}
 
-	chunkPath := GetChunkPath(id, filePath, index, version)
+	chunkPath := cs.GetChunkPath(id, filePath, index, version)
 	_, err = os.Create(chunkPath)
 	if err != nil {
 		return nil, err
@@ -147,7 +149,7 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 		return ErrChunkDoesNotExist
 	}
 
-	newPath := GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
+	newPath := cs.GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
 	err := os.Rename(chunk.Path, newPath)
 	if err != nil {
 		return err

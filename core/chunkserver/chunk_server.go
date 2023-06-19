@@ -21,6 +21,7 @@ type ChunkServer struct {
 	*HealthMonitorService
 	*LeaseMonitorService
 
+	Cfg           *Config
 	Mutex         sync.RWMutex
 	LRU           *cache.LRU
 	MasterAddr    string
@@ -34,12 +35,13 @@ var (
 	ErrDataNotFoundInCache  = errors.New("data not found in cache")
 )
 
-func NewChunkServer() *ChunkServer {
+func NewChunkServer(cfg *Config) *ChunkServer {
 	leaseExpChan := make(chan model.Lease)
-	chunkStore := NewChunkService()
 	leaseStore := NewLeaseStore()
+	chunkStore := NewChunkService(cfg)
 
 	return &ChunkServer{
+		Cfg:                  cfg,
 		ChunkService:         chunkStore,
 		LeaseStore:           leaseStore,
 		LRU:                  cache.NewLRU(100),
