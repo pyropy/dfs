@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/cache"
+	"github.com/pyropy/dfs/lib/checksum"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
 	"log"
@@ -33,6 +34,8 @@ var (
 	ErrChunkVersionMismatch = errors.New("chunk version mismatch")
 	ErrChunkLeaseNotGranted = errors.New("chunk lease not granted")
 	ErrDataNotFoundInCache  = errors.New("data not found in cache")
+	ErrChunkLeaseNotFound   = errors.New("chunk server does not have active lease on chunk")
+	ErrChecksumNotMatching  = errors.New("given checksum does not match calculated checksum")
 )
 
 func NewChunkServer(cfg *Config) *ChunkServer {
@@ -67,6 +70,37 @@ func (c *ChunkServer) CreateChunk(id uuid.UUID, filePath string, index, version,
 }
 
 func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, version int, chunkHolders []rpcChunkServer.ChunkServer) (int, error) {
+	if !c.HasLease(chunkID) {
+		return 0, ErrChunkLeaseNotFound
+	}
+
+	bytesWritten, err := c.ApplyMigration(chunkID, checksum, offset, version)
+	if err != nil {
+		return 0, err
+	}
+
+	// Notify other holders to apply migration
+	var wg sync.WaitGroup
+	for _, ch := range chunkHolders {
+		go func(ch rpcChunkServer.ChunkServer) {
+			if ch.ID == c.ChunkServerID {
+				return
+			}
+
+			wg.Add(1)
+			defer wg.Done()
+			err = c.SendApplyMigration(chunkID, checksum, offset, version, ch.Address)
+			if err != nil {
+				log.Println("error", "chunkServer", "failed to send apply migration", err)
+			}
+		}(ch)
+	}
+
+	wg.Wait()
+	return bytesWritten, nil
+}
+
+func (c *ChunkServer) ApplyMigration(chunkID uuid.UUID, checksum int, offset int, version int) (int, error) {
 	_, chunkExists := c.ChunkService.GetChunk(chunkID)
 	if !chunkExists {
 		return 0, ErrChunkDoesNotExist
@@ -80,23 +114,6 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	bytesWritten, err := c.WriteChunkBytes(chunkID, data, offset, version)
 	if err != nil {
 		return bytesWritten, err
-	}
-
-	// If primary notify other holders to apply migration
-	if !c.HasLease(chunkID) {
-		return bytesWritten, nil
-	}
-
-	for _, ch := range chunkHolders {
-		if ch.ID == c.ChunkServerID {
-			continue
-		}
-
-		err := c.SendApplyMigration(chunkID, checksum, offset, version, ch.Address)
-		if err != nil {
-			log.Println("error", "chunkServer", "failed to send apply migration", err)
-		}
-
 	}
 
 	return bytesWritten, nil
@@ -113,10 +130,13 @@ func (c *ChunkServer) GrantLease(chunkID uuid.UUID, validUntil time.Time) error 
 	return nil
 }
 
-func (c *ChunkServer) ReceiveBytes(data []byte, checksum int) error {
-	// TODO: Check checksum
-	c.LRU.Put(checksum, data)
+func (c *ChunkServer) ReceiveBytes(data []byte, inChecksum int) error {
+	calculatedCheckSum := checksum.CalculateCheckSum(data)
+	if calculatedCheckSum != inChecksum {
+		return ErrChecksumNotMatching
+	}
 
+	c.LRU.Put(inChecksum, data)
 	return nil
 }
 
@@ -227,10 +247,12 @@ func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkS
 				return err
 			}
 
+			checkSum := checksum.CalculateCheckSum(data)
+
 			// transfer data
 			transferDataArgs := rpcChunkServer.TransferDataArgs{
 				Data:     data,
-				CheckSum: 123123, // TODO Add checksum
+				CheckSum: checkSum,
 			}
 
 			var transferDataReply rpcChunkServer.TransferDataReply
@@ -244,7 +266,7 @@ func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkS
 			// Apply migration
 			applyMigrationArgs := rpcChunkServer.ApplyMigrationArgs{
 				ChunkID:  chunk.ID,
-				CheckSum: 123123, // TODO Add checksum
+				CheckSum: checkSum,
 				Offset:   0,
 				Version:  chunk.Version,
 			}

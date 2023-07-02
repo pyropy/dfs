@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/pyropy/dfs/lib/checksum"
 	"io"
 	"io/ioutil"
 	"net/rpc"
@@ -182,10 +183,10 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		chunkServers = append(chunkServers, chunkServer)
 	}
 
-	// TODO: Calculate checksum
+	checkSum := checksum.CalculateCheckSum(data)
 	args := chunkserver.WriteChunkArgs{
 		ChunkID:      chunkID,
-		CheckSum:     123123,
+		CheckSum:     checkSum,
 		Offset:       offset,
 		Version:      writeRequest.Version,
 		ChunkServers: chunkServers,

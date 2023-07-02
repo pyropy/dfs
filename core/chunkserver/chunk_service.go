@@ -140,16 +140,16 @@ func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset i
 
 // IncrementChunkVersion increments chunk version number but also checks if
 // there is a mismatch between version given by master and local chunk version
-func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) error {
-	cs.Mutex.Lock()
-	defer cs.Mutex.Unlock()
+func (c *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) error {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
 
-	chunk, exists := cs.Chunks.Get(chunkID)
+	chunk, exists := c.Chunks.Get(chunkID)
 	if !exists {
 		return ErrChunkDoesNotExist
 	}
 
-	newPath := cs.GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
+	newPath := c.GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
 	err := os.Rename(chunk.Path, newPath)
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (cs *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) err
 
 	chunk.Path = newPath
 	chunk.Version = chunk.Version + 1
-	cs.Chunks.Set(chunk.ID, *chunk)
+	c.Chunks.Set(chunk.ID, *chunk)
 
 	return nil
 }
