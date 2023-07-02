@@ -111,10 +111,8 @@ func (c *Client) WriteFile(ctx context.Context, path string, data *bytes.Buffer,
 	remainingBytes := data.Len()
 	chunkStartOffset := offset % constants.CHUNK_SIZE_BYTES
 
-	log.Infow("WriteFile", "total bytes", data.Len())
-
 	for chunkIdx := offset / constants.CHUNK_SIZE_BYTES; remainingBytes > 0; chunkIdx++ {
-		log.Infow("WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
+		log.Debugw("WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
 		bytesToWrite := min(constants.CHUNK_SIZE_BYTES-chunkStartOffset, remainingBytes)
 		b, err := ioutil.ReadAll(io.LimitReader(data, int64(bytesToWrite)))
 		if err != nil {
@@ -147,20 +145,18 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		return bytesWritten, err
 	}
 
-    log.Infow("starting pushing data to chunk servers", "numChunkservers", len(writeRequest.ChunkServers), "lenBytes", len(data))
+    log.Debugw("starting pushing data to chunk servers", "numChunkservers", len(writeRequest.ChunkServers), "lenBytes", len(data))
 	// push bytes in parallel
 	for _, cs := range writeRequest.ChunkServers {
 		wg.Add(1)
 		go func(chunkServer master.ChunkServer) {
 			defer wg.Done()
 			resp, err := c.SendBytes(chunkServer.Address, data)
-			log.Infow("send bytes response", "bytesReceived", resp.NumBytesReceived, "err", err)
+			log.Debugw("send bytes response", "bytesReceived", resp.NumBytesReceived, "err", err)
 		}(cs)
 	}
 
 	wg.Wait()
-
-    log.Infow("Finished with pushing data to servers")
 
 	// find address of lease server
 	var leaseAddr string
@@ -170,8 +166,6 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
             break
 		}
 	}
-
-    log.Infow("Found lease addr", "leaseAddr", leaseAddr)
 
 	rpcClient, err := rpc.DialHTTP("tcp", leaseAddr)
 	if err != nil {
@@ -190,7 +184,6 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 
 
 	checkSum := checksum.CalculateCheckSum(data)
-    log.Infow("Performing write", "checkSum", checkSum)
 	args := chunkserver.WriteChunkArgs{
 		ChunkID:      chunkID,
 		CheckSum:     checkSum,
@@ -204,8 +197,7 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 	if err != nil {
 		return 0, err
 	}
-    log.Infow("Bytes written")
-
+    log.Debugw("Bytes written")
 	return reply.BytesWritten, nil
 }
 

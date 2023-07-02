@@ -96,7 +96,6 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	}
 
 	wg.Wait()
-    log.Println("debug", "sent apply migration to everyone")
 	return bytesWritten, nil
 }
 

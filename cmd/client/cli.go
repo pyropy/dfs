@@ -11,6 +11,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// TODO: Separate create and write Command
+// Write command should take stream of bytes and write them at given offset
 var writeCmd = &cli.Command{
 	Name: "write",
 	Flags: []cli.Flag{
@@ -68,11 +70,10 @@ var writeCmd = &cli.Command{
 
 		bw, err := c.WriteFile(ctx, dfsPath, buff, 0)
 		if err != nil {
-			log.Fatalln(err)
 			return err
 		}
 
-		log.Infow("Bytes written", bw, "at offset", 0)
+		log.Infow("Bytes written", "bytes", bw, "offset", 0)
 		return nil
 	},
 }

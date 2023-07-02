@@ -132,7 +132,7 @@ func (c *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset in
 	}
 
 	c.Lock.Lock()
-	defer c.Lock.Lock()
+	defer c.Lock.Unlock()
 
 	if chunk.Version != version {
 		log.Println("error", "chunkService", "chunk version missmatch", "chunkID", chunkID, "version", chunk.Version, "versionGiven", version)
