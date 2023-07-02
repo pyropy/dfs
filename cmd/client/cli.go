@@ -104,3 +104,6 @@ var listCmd = &cli.Command{
 		return nil
 	},
 }
+
+
+// TODO: Add delete command
