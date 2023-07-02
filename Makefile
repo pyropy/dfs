@@ -41,5 +41,18 @@ tidy:
 vendor:
 	go mod vendor
 
-docker:
-	docker build . -t dfs
+docker-master:
+	docker build . -t dfs --target master
+
+docker-chunkserver:
+	docker build . -t dfs --target chunkserver
+
+docker-client:
+	docker build . -t dfs --target client
+
+docker-up:
+	docker-compose up -d --build
+
+docker-down:
+	docker-compose down -v 
+

@@ -25,11 +25,11 @@ var writeCmd = &cli.Command{
 			Usage:    "Path where you want to store your file on dfs",
 		},
 	},
-	Action: func(ctx *cli.Context) error {
-		filePath := ctx.String("file-path")
-		dfsPath := ctx.String("dfs-path")
-		storePath := ctx.String("store")
-		rpcUrl := ctx.String("rpc-url")
+	Action: func(cctx *cli.Context) error {
+		filePath := cctx.String("file-path")
+		dfsPath := cctx.String("dfs-path")
+		storePath := cctx.String("store")
+		rpcUrl := cctx.String("rpc-url")
 
 		c, err := client.NewClient(rpcUrl, storePath)
 		if err != nil {
@@ -46,31 +46,33 @@ var writeCmd = &cli.Command{
 			return err
 		}
 
-		cctx := context.Background()
+		ctx := context.Background()
 
 		metadata := model.NewFileMetadata(dfsPath)
 		metadata.Chunks = newFileReply.Chunks
-		err = c.AddNewFileMetadata(cctx, dfsPath, metadata)
+		err = c.AddNewFileMetadata(ctx, dfsPath, metadata)
 		if err != nil {
 			return err
 		}
 
-		log.Info("Created new file ", " chunks ", newFileReply.Chunks, " chunk servers ", newFileReply.ChunkServerIDs)
+		log.Infow("Created new file", "chunks", newFileReply.Chunks, "chunkServers", newFileReply.ChunkServerIDs)
 
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return err
 		}
 
+		log.Debugw("read contents", "filePath", filePath, "size", len(content))
+
 		buff := bytes.NewBuffer(content)
 
-		bw, err := c.WriteFile(dfsPath, buff, 0)
+		bw, err := c.WriteFile(ctx, dfsPath, buff, 0)
 		if err != nil {
 			log.Fatalln(err)
 			return err
 		}
 
-		log.Info("Bytes written", bw, "at offset", 0)
+		log.Infow("Bytes written", bw, "at offset", 0)
 		return nil
 	},
 }

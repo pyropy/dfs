@@ -120,7 +120,18 @@ func (m *Master) RequestWrite(chunkID uuid.UUID) (uuid.UUID, *model.Lease, []*Ch
 		if err != nil {
 			return uuid.UUID{}, nil, nil, 0, err
 		}
-	}
+    } else {
+        var leaseHolder *ChunkServerMetadata
+        for _, chunkServer := range chunkServers {
+            if chunkServer.ID == lease.ChunkServerID {
+                leaseHolder = chunkServer
+                break
+            }
+
+        }
+
+        lease, err = m.extendLease(chunkID, leaseHolder)
+    }
 
 	for _, chunkServer := range chunkServers {
 		// TODO: Retry if fails
@@ -159,4 +170,18 @@ func (m *Master) grantLeaseRandom(chunkID uuid.UUID, chunkServers []*ChunkServer
 	lease := m.LeaseStore.GrantLease(chunkID, chunkServerMetadata)
 	err := sendLeaseGrant(chunkID, lease, chunkServerMetadata)
 	return lease, err
+}
+
+func (m *Master) extendLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) (*model.Lease, error) {
+    lease, err := m.LeaseStore.ExtendLease(chunkID, chunkServer)
+    if err != nil {
+        return nil, err
+    }
+
+    err = sendLeaseGrant(chunkID, lease, chunkServer)
+    if err != nil {
+        return nil, err
+    }
+
+    return lease, err
 }

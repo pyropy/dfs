@@ -41,7 +41,7 @@ type TransferDataArgs struct {
 }
 
 type TransferDataReply struct {
-	NumBytesRecieved int
+	NumBytesReceived int
 }
 
 type ChunkServer struct {

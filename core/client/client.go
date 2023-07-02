@@ -97,8 +97,7 @@ func min(x, y int) int {
 	return y
 }
 
-func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, error) {
-	ctx := context.Background()
+func (c *Client) WriteFile(ctx context.Context, path string, data *bytes.Buffer, offset int) (int, error) {
 	fileMetadata, err := c.FileMetadataStore.Get(ctx, path)
 	if err != nil {
 		return 0, err
@@ -112,10 +111,10 @@ func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, er
 	remainingBytes := data.Len()
 	chunkStartOffset := offset % constants.CHUNK_SIZE_BYTES
 
-	log.Debug("client", "WriteFile", "total bytes", data.Len())
+	log.Infow("WriteFile", "total bytes", data.Len())
 
 	for chunkIdx := offset / constants.CHUNK_SIZE_BYTES; remainingBytes > 0; chunkIdx++ {
-		log.Debug("client", "WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
+		log.Infow("WriteFile", "chunkIndex", chunkIdx, "remainingBytes", remainingBytes, "chunkStartOffset", chunkStartOffset)
 		bytesToWrite := min(constants.CHUNK_SIZE_BYTES-chunkStartOffset, remainingBytes)
 		b, err := ioutil.ReadAll(io.LimitReader(data, int64(bytesToWrite)))
 		if err != nil {
@@ -131,7 +130,6 @@ func (c *Client) WriteFile(path string, data *bytes.Buffer, offset int) (int, er
 		chunkStartOffset = 0
 		remainingBytes -= bytesWritten
 		totalBytesWritten += bytesWritten
-
 	}
 
 	// TODO: Check if requesting creating new chunk if we dont have enough space in remaining chunks is needed?
@@ -149,25 +147,31 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		return bytesWritten, err
 	}
 
+    log.Infow("starting pushing data to chunk servers", "numChunkservers", len(writeRequest.ChunkServers), "lenBytes", len(data))
 	// push bytes in parallel
 	for _, cs := range writeRequest.ChunkServers {
 		wg.Add(1)
 		go func(chunkServer master.ChunkServer) {
 			defer wg.Done()
-
-			c.SendBytes(chunkServer.Address, data)
+			resp, err := c.SendBytes(chunkServer.Address, data)
+			log.Infow("send bytes response", "bytesReceived", resp.NumBytesReceived, "err", err)
 		}(cs)
 	}
 
 	wg.Wait()
+
+    log.Infow("Finished with pushing data to servers")
 
 	// find address of lease server
 	var leaseAddr string
 	for _, cs := range writeRequest.ChunkServers {
 		if cs.ID == writeRequest.PrimaryChunkServerID {
 			leaseAddr = cs.Address
+            break
 		}
 	}
+
+    log.Infow("Found lease addr", "leaseAddr", leaseAddr)
 
 	rpcClient, err := rpc.DialHTTP("tcp", leaseAddr)
 	if err != nil {
@@ -183,7 +187,10 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		chunkServers = append(chunkServers, chunkServer)
 	}
 
+
+
 	checkSum := checksum.CalculateCheckSum(data)
+    log.Infow("Performing write", "checkSum", checkSum)
 	args := chunkserver.WriteChunkArgs{
 		ChunkID:      chunkID,
 		CheckSum:     checkSum,
@@ -197,6 +204,7 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 	if err != nil {
 		return 0, err
 	}
+    log.Infow("Bytes written")
 
 	return reply.BytesWritten, nil
 }
@@ -211,7 +219,7 @@ func (c *Client) SendBytes(addr string, data []byte) (*chunkserver.TransferDataR
 
 	args := chunkserver.TransferDataArgs{
 		Data:     data,
-		CheckSum: 123123,
+		CheckSum: checksum.CalculateCheckSum(data),
 	}
 
 	var reply chunkserver.TransferDataReply

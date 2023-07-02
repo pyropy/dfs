@@ -55,7 +55,7 @@ func (c *ChunkServerAPI) IncrementChunkVersion(args *chunkServerRPC.IncrementChu
 	return c.ChunkServer.IncrementChunkVersion(args.ChunkID, args.Version)
 }
 
-func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, reply *chunkServerRPC.TransferDataReply) error {
+func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, _ *chunkServerRPC.TransferDataReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.TransferData", "checksum", args.CheckSum)
 
 	err := c.ChunkServer.ReceiveBytes(args.Data, args.CheckSum)
@@ -81,9 +81,8 @@ func (c *ChunkServerAPI) WriteChunk(args *chunkServerRPC.WriteChunkArgs, reply *
 
 func (c *ChunkServerAPI) ApplyMigration(args *chunkServerRPC.ApplyMigrationArgs, reply *chunkServerRPC.ApplyMigrationReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.ApplyMigration", "args", args)
-	chunkServers := []chunkServerRPC.ChunkServer{}
 
-	bytesWritten, err := c.ChunkServer.WriteChunk(args.ChunkID, args.CheckSum, args.Offset, args.Version, chunkServers)
+	bytesWritten, err := c.ChunkServer.ApplyMigration(args.ChunkID, args.CheckSum, args.Offset, args.Version)
 	if err != nil {
 		return err
 	}

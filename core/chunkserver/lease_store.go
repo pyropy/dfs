@@ -21,12 +21,12 @@ func NewLeaseStore() *LeaseStore {
 
 // HasLease checks if chunk servers has lease over chunk for given chunk ID
 func (ls *LeaseStore) HasLease(chunkID uuid.UUID) bool {
-	lease, leaseExists := ls.Leases.Get(chunkID) // ls.Leases[chunkID]
+	lease, leaseExists := ls.Leases.Get(chunkID)
 	if !leaseExists {
 		return false
 	}
 
-	return lease.IsExpired()
+	return !lease.IsExpired()
 }
 
 // GrantLease grants lease over chunk for period of time

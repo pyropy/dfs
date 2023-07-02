@@ -43,7 +43,7 @@ func (ls *LeaseStore) HasLease(chunkID uuid.UUID) bool {
 
 // GrantLease grants lease over chunk for period of time
 func (ls *LeaseStore) GrantLease(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) *model.Lease {
-	validFor := 60 * time.Second
+	validFor := 300 * time.Second
 	validUntil := time.Now().Add(validFor)
 
 	lease := model.Lease{

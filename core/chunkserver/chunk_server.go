@@ -79,14 +79,16 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	// Notify other holders to apply migration
 	var wg sync.WaitGroup
 	for _, ch := range chunkHolders {
-		go func(ch rpcChunkServer.ChunkServer) {
-			if ch.ID == c.ChunkServerID {
-				return
-			}
+        // don't send migration to self
+        if ch.ID == c.ChunkServerID {
+            continue
+        }
 
-			wg.Add(1)
+		wg.Add(1)
+		go func(chunkServer rpcChunkServer.ChunkServer) {
 			defer wg.Done()
-			err = c.SendApplyMigration(chunkID, checksum, offset, version, ch.Address)
+
+			err = c.SendApplyMigration(chunkID, checksum, offset, version, chunkServer.Address)
 			if err != nil {
 				log.Println("error", "chunkServer", "failed to send apply migration", err)
 			}
@@ -94,6 +96,7 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	}
 
 	wg.Wait()
+    log.Println("debug", "sent apply migration to everyone")
 	return bytesWritten, nil
 }
 

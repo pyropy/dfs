@@ -63,11 +63,13 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 
 func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
 	log.Infow("rpc", "event", "RequestWrite", "args", args)
-	chunkServers := []masterRPC.ChunkServer{}
+	var chunkServers []masterRPC.ChunkServer
 	chunkID, lease, chunkHolders, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
 	if err != nil {
 		return err
 	}
+
+	log.Infow("request write", "chunkID", chunkID, "lease", lease, "chunkHolders", chunkHolders, "chunkVersion", chunkVersion, "err", err)
 
 	for _, chunkHolder := range chunkHolders {
 		chunkServer := masterRPC.ChunkServer{

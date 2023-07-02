@@ -1,4 +1,7 @@
-version: "3.6"
+x-common-network:
+  &common-network
+  networks:
+    - common
 
 services:
   master:
@@ -8,6 +11,7 @@ services:
     command: ["/app/master"]
     ports:
       - "1234:1234"
+    <<: *common-network
 
   cs1:
     build:
@@ -22,6 +26,7 @@ services:
       - master
     ports:
       - "1235:50001"
+    <<: *common-network
 
   cs2:
     build:
@@ -36,6 +41,7 @@ services:
       - master
     ports:
       - "1236:50002"
+    <<: *common-network
 
   cs3:
     build:
@@ -50,6 +56,7 @@ services:
       - master
     ports:
       - "1237:50003"
+    <<: *common-network
 
   cs4:
     build:
@@ -64,3 +71,9 @@ services:
       - master
     ports:
       - "1238:50004"
+    <<: *common-network
+
+networks:
+  common:
+
+
