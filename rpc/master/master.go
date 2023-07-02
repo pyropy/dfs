@@ -51,7 +51,8 @@ type RequestLeaseRenewalReply struct {
 }
 
 type RequestWriteArgs struct {
-	ChunkID uuid.UUID
+	BytesLen int
+	ChunkID  uuid.UUID
 }
 
 type ChunkServer struct {

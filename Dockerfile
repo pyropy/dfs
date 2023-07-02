@@ -10,6 +10,7 @@ RUN go build -o client cmd/client/*.go
 
 FROM alpine:3.17.0 as chunkserver
 
+RUN mkdir /opt/chunks
 WORKDIR /app
 COPY --from=builder /app/chunkserver ./chunkserver
 

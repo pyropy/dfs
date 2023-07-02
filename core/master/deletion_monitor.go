@@ -15,7 +15,7 @@ var (
 )
 
 // NewDeletionMonitor creates new deletion monitor responsible for deleting file metadata
-// for files that have been tagged for deletion for more then three days
+// for files that have been tagged for deletion for more than three days
 func NewDeletionMonitor(fileStore *FileMetadataStore) *DeletionMonitor {
 	return &DeletionMonitor{
 		fileStore: fileStore,

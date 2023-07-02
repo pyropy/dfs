@@ -31,10 +31,9 @@ func (c *ChunkServerAPI) CreateChunk(args *chunkServerRPC.CreateChunkRequest, re
 }
 
 // DeleteChunk ...
-func (c *ChunkServerAPI) DeleteChunk(args *chunkServerRPC.DeleteChunkRequest, reply *chunkServerRPC.DeleteChunkReply) error {
+func (c *ChunkServerAPI) DeleteChunk(args *chunkServerRPC.DeleteChunkRequest, _ *chunkServerRPC.DeleteChunkReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.DeleteChunk", "args", args)
-
-	return nil
+	return c.ChunkServer.DeleteChunk(args.ChunkID)
 }
 
 // GrantLease ...

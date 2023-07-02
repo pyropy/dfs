@@ -9,15 +9,17 @@ import (
 	"log"
 	"os"
 	fp "path/filepath"
+	"sync"
 )
 
 type ChunkService struct {
 	Cfg    *Config
+	Lock   sync.RWMutex
 	Chunks cmap.Map[uuid.UUID, model.Chunk]
 }
 
 var (
-	ErrChunkDoesNotExist = errors.New("Chunk does not exist")
+	ErrChunkDoesNotExist = errors.New("chunk does not exist")
 )
 
 func NewChunkService(cfg *Config) *ChunkService {
@@ -31,49 +33,55 @@ func GetChunkFilename(id uuid.UUID, index, version int) string {
 	return fmt.Sprintf("%s-%d-%d.chunk", id, index, version)
 }
 
-func (cs *ChunkService) GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
+func (c *ChunkService) GetChunkPath(id uuid.UUID, filePath string, index, version int) string {
 	filename := GetChunkFilename(id, index, version)
-	filepath := fp.Join(cs.Cfg.Chunks.Path, filePath, filename)
+	filepath := fp.Join(c.Cfg.Chunks.Path, filePath, filename)
 
 	return filepath
 }
 
-func (cs *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*model.Chunk, error) {
+func (c *ChunkService) CreateChunk(id uuid.UUID, filePath string, index, version, size int) (*model.Chunk, error) {
 	// create chunks parent path dir
-	chunksParentPath := fp.Join(cs.Cfg.Chunks.Path, filePath)
+	chunk := model.Chunk{
+		ID:       id,
+		Version:  version,
+		FilePath: filePath,
+	}
+
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+
+	chunksParentPath := fp.Join(c.Cfg.Chunks.Path, filePath)
 	err := os.MkdirAll(chunksParentPath, 0750)
 	if err != nil && !os.IsExist(err) {
 		log.Fatal(err)
 	}
 
-	chunkPath := cs.GetChunkPath(id, filePath, index, version)
+	chunkPath := c.GetChunkPath(id, filePath, index, version)
 	_, err = os.Create(chunkPath)
 	if err != nil {
 		return nil, err
 	}
 
-	chunk := model.Chunk{
-		ID:       id,
-		Version:  version,
-		Path:     chunkPath,
-		FilePath: filePath,
-	}
+	chunk.Path = chunkPath
+
+	c.AddChunk(chunk)
 
 	return &chunk, nil
 }
 
-func (cs *ChunkService) AddChunk(chunk model.Chunk) {
-	cs.Chunks.Set(chunk.ID, chunk)
+func (c *ChunkService) AddChunk(chunk model.Chunk) {
+	c.Chunks.Set(chunk.ID, chunk)
 }
 
-func (cs *ChunkService) GetChunk(chunkID uuid.UUID) (*model.Chunk, bool) {
-	return cs.Chunks.Get(chunkID)
+func (c *ChunkService) GetChunk(chunkID uuid.UUID) (*model.Chunk, bool) {
+	return c.Chunks.Get(chunkID)
 }
 
-func (cs *ChunkService) GetAllChunks() []model.Chunk {
+func (c *ChunkService) GetAllChunks() []model.Chunk {
 	chunks := make([]model.Chunk, 0)
 
-	cs.Chunks.Range(func(k, v any) bool {
+	c.Chunks.Range(func(k, v any) bool {
 		chunk := v.(model.Chunk)
 		chunks = append(chunks, chunk)
 
@@ -83,12 +91,15 @@ func (cs *ChunkService) GetAllChunks() []model.Chunk {
 	return chunks
 }
 
-// ReadChunk reads chunk lenght number of bytes starting at given offset. If lenght is -1 whole chunk file is read
-func (cs *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte, error) {
-	chunk, exists := cs.GetChunk(chunkID)
+// ReadChunk reads chunk length number of bytes starting at given offset. If length is -1 whole chunk file is read
+func (c *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte, error) {
+	chunk, exists := c.GetChunk(chunkID)
 	if !exists {
 		return nil, ErrChunkDoesNotExist
 	}
+
+	c.Lock.RLock()
+	defer c.Lock.RUnlock()
 
 	// Read all
 	if length == -1 {
@@ -114,11 +125,14 @@ func (cs *ChunkService) ReadChunk(chunkID uuid.UUID, offset, length int) ([]byte
 	return data, nil
 }
 
-func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset int, version int) (int, error) {
-	chunk, exists := cs.GetChunk(chunkID)
+func (c *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset int, version int) (int, error) {
+	chunk, exists := c.GetChunk(chunkID)
 	if !exists {
 		return 0, ErrChunkDoesNotExist
 	}
+
+	c.Lock.Lock()
+	defer c.Lock.Lock()
 
 	if chunk.Version != version {
 		log.Println("error", "chunkService", "chunk version missmatch", "chunkID", chunkID, "version", chunk.Version, "versionGiven", version)
@@ -140,14 +154,14 @@ func (cs *ChunkService) WriteChunkBytes(chunkID uuid.UUID, data []byte, offset i
 
 // IncrementChunkVersion increments chunk version number but also checks if
 // there is a mismatch between version given by master and local chunk version
-func (c *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) error {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
-
+func (c *ChunkService) IncrementChunkVersion(chunkID uuid.UUID, version int) error {
 	chunk, exists := c.Chunks.Get(chunkID)
 	if !exists {
 		return ErrChunkDoesNotExist
 	}
+
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
 
 	newPath := c.GetChunkPath(chunk.ID, chunk.FilePath, chunk.Index, version)
 	err := os.Rename(chunk.Path, newPath)
@@ -164,5 +178,22 @@ func (c *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) erro
 	chunk.Version = chunk.Version + 1
 	c.Chunks.Set(chunk.ID, *chunk)
 
+	return nil
+}
+
+func (c *ChunkService) DeleteChunk(chunkID uuid.UUID) error {
+	chunk, exists := c.Chunks.Get(chunkID)
+	if !exists {
+		return ErrChunkDoesNotExist
+	}
+
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+
+	if err := os.Remove(chunk.Path); err != nil {
+		return err
+	}
+
+	c.Chunks.Delete(chunkID)
 	return nil
 }

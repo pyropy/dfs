@@ -64,14 +64,12 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
 	log.Infow("rpc", "event", "RequestWrite", "args", args)
 	chunkServers := []masterRPC.ChunkServer{}
-	lease, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
+	chunkID, lease, chunkHolders, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
 	if err != nil {
 		return err
 	}
 
-	chunkHoldersIDs := m.Master.GetChunkHolders(args.ChunkID)
-	for _, chunkHolderID := range chunkHoldersIDs {
-		chunkHolder := m.Master.GetChunkServerMetadata(chunkHolderID)
+	for _, chunkHolder := range chunkHolders {
 		chunkServer := masterRPC.ChunkServer{
 			ID:      chunkHolder.ID,
 			Address: chunkHolder.Address,
@@ -79,7 +77,7 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 		chunkServers = append(chunkServers, chunkServer)
 	}
 
-	reply.ChunkID = args.ChunkID
+	reply.ChunkID = chunkID
 	reply.PrimaryChunkServerID = lease.ChunkServerID
 	reply.ValidUntil = lease.ValidUntil
 	reply.ChunkServers = chunkServers

@@ -38,3 +38,8 @@ func (ls *LeaseStore) GrantLease(chunkID uuid.UUID, validUntil time.Time) {
 
 	ls.Leases.Set(chunkID, lease)
 }
+
+// RemoveLease removes lease over chunk if present
+func (ls *LeaseStore) RemoveLease(chunkID uuid.UUID) {
+	ls.Leases.Delete(chunkID)
+}

@@ -24,6 +24,8 @@ run-client:
 run-chunkserver:
 	go run cmd/chunkserver/*.go
 
+build: build-master build-chunkserver build-client
+
 build-master:
 	go build -o master cmd/master/*.go
 
@@ -38,3 +40,6 @@ tidy:
 
 vendor:
 	go mod vendor
+
+docker:
+	docker build . -t dfs

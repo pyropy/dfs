@@ -22,12 +22,13 @@ func NewChunkMetadataStore() *ChunkMetadataStore {
 	}
 }
 
-func NewChunkMetadata(chunkID uuid.UUID, index, version int, chunkServerIds []uuid.UUID) model.ChunkMetadata {
+func NewChunkMetadata(chunkID uuid.UUID, index, version int, filePath string, chunkServerIds []uuid.UUID) model.ChunkMetadata {
 	return model.ChunkMetadata{
 		Chunk: model.Chunk{
-			ID:      chunkID,
-			Index:   index,
-			Version: version,
+			ID:       chunkID,
+			Index:    index,
+			Version:  version,
+			FilePath: filePath,
 		},
 		ChunkServers: chunkServerIds,
 	}
@@ -103,17 +104,30 @@ func (cs *ChunkMetadataStore) UpdateChunksLocation(chunkHolder uuid.UUID, chunks
 // RemoveChunkHolder removes given chunk holder from list of chunk holders for all chunks
 func (cs *ChunkMetadataStore) RemoveChunkHolder(chunkHolderID uuid.UUID) {
 	cs.Chunks.Range(func(k, v any) bool {
-		chunkMetadata := v.(model.ChunkMetadata)
-		chunkServers := make([]uuid.UUID, 0)
-
-		for _, chunkServerID := range chunkMetadata.ChunkServers {
-			if chunkHolderID != chunkServerID {
-				chunkServers = append(chunkServers, chunkServerID)
-			}
-		}
-
-		chunkMetadata.ChunkServers = chunkServers
-		cs.Chunks.Set(chunkMetadata.ID, chunkMetadata)
+		chunkID := k.(uuid.UUID)
+		cs.RemoveChunkHolderFromChunk(chunkHolderID, chunkID)
 		return true
 	})
+}
+
+// RemoveChunkHolderFromChunk removes given chunk holder from chunk holders for given chunk
+func (cs *ChunkMetadataStore) RemoveChunkHolderFromChunk(chunkHolderID uuid.UUID, chunkID uuid.UUID) error {
+	chunkServers := make([]uuid.UUID, 0)
+	chunkMetadata, found := cs.Chunks.Get(chunkID)
+	if !found {
+		return ErrChunkNotFound
+	}
+
+	for _, chunkServerID := range chunkMetadata.ChunkServers {
+		if chunkHolderID != chunkServerID {
+			chunkServers = append(chunkServers, chunkServerID)
+		}
+	}
+
+	cs.Chunks.Set(chunkMetadata.ID, *chunkMetadata)
+	return nil
+}
+
+func (cs *ChunkMetadataStore) RemoveChunkMetadata(chunkID uuid.UUID) {
+	cs.Chunks.Delete(chunkID)
 }

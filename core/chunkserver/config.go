@@ -11,7 +11,7 @@ type Config struct {
 		Addr string `envconfig:"MASTER_ADDR"`
 	}
 	Chunks struct {
-		Path string `envconfig:"CHUNK_PATH"`
+		Path string `envconfig:"CHUNK_PATH" default:"/app/chunks"`
 	}
 }
 

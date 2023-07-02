@@ -12,12 +12,12 @@ import (
 type HealthMonitorService struct {
 	masterAddr    string
 	chunkServerID uuid.UUID
-	chunkStore    *ChunkService
+	chunkService  *ChunkService
 }
 
-func NewHealthReportService(chunkStore *ChunkService) *HealthMonitorService {
+func NewHealthReportService(chunkService *ChunkService) *HealthMonitorService {
 	return &HealthMonitorService{
-		chunkStore: chunkStore,
+		chunkService: chunkService,
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *HealthMonitorService) Report() error {
 	defer client.Close()
 
 	chunkReport := make([]master.Chunk, 0)
-	for _, chunk := range h.chunkStore.GetAllChunks() {
+	for _, chunk := range h.chunkService.GetAllChunks() {
 		ch := master.Chunk{
 			ID:      chunk.ID,
 			Version: chunk.Version,

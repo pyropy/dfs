@@ -23,7 +23,6 @@ type ChunkServer struct {
 	*LeaseMonitorService
 
 	Cfg           *Config
-	Mutex         sync.RWMutex
 	LRU           *cache.LRU
 	MasterAddr    string
 	ChunkServerID uuid.UUID
@@ -41,14 +40,14 @@ var (
 func NewChunkServer(cfg *Config) *ChunkServer {
 	leaseExpChan := make(chan model.Lease)
 	leaseStore := NewLeaseStore()
-	chunkStore := NewChunkService(cfg)
+	chunkService := NewChunkService(cfg)
 
 	return &ChunkServer{
 		Cfg:                  cfg,
-		ChunkService:         chunkStore,
 		LeaseStore:           leaseStore,
+		ChunkService:         chunkService,
 		LRU:                  cache.NewLRU(100),
-		HealthMonitorService: NewHealthReportService(chunkStore),
+		HealthMonitorService: NewHealthReportService(chunkService),
 		LeaseMonitorService:  NewLeaseMonitor(leaseStore, leaseExpChan),
 	}
 }
@@ -63,8 +62,6 @@ func (c *ChunkServer) CreateChunk(id uuid.UUID, filePath string, index, version,
 	if err != nil {
 		return nil, err
 	}
-
-	c.AddChunk(*chunk)
 
 	return chunk, nil
 }
@@ -119,6 +116,11 @@ func (c *ChunkServer) ApplyMigration(chunkID uuid.UUID, checksum int, offset int
 	return bytesWritten, nil
 }
 
+func (c *ChunkServer) DeleteChunk(chunkID uuid.UUID) error {
+	c.LeaseStore.RemoveLease(chunkID)
+	return c.ChunkService.DeleteChunk(chunkID)
+}
+
 func (c *ChunkServer) GrantLease(chunkID uuid.UUID, validUntil time.Time) error {
 	_, exists := c.GetChunk(chunkID)
 	if !exists {
@@ -140,6 +142,12 @@ func (c *ChunkServer) ReceiveBytes(data []byte, inChecksum int) error {
 	return nil
 }
 
+// IncrementChunkVersion increments chunk version number but also checks if
+// there is a mismatch between version given by master and local chunk version
+func (c *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) error {
+	return c.ChunkService.IncrementChunkVersion(chunkID, version)
+}
+
 func (c *ChunkServer) StartLeaseMonitor(ctx context.Context) {
 	c.LeaseMonitorService.Start(ctx)
 }
@@ -150,9 +158,6 @@ func (c *ChunkServer) StartHealthReport(ctx context.Context) {
 
 // RegisterChunkServer registers chunk server instance with Master API
 func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
-
 	client, err := rpc.DialHTTP("tcp", masterAddr)
 	if err != nil {
 		log.Println("error", "unreachable")

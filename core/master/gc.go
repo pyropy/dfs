@@ -40,7 +40,7 @@ func (gc *GC) Start(ctx context.Context) error {
 	}
 }
 
-// findOrphanedChunks goes drought all chunks to and sends orphaned chunks to deletion channel
+// findOrphanedChunks goes through all chunks to and sends orphaned chunks to deletion channel
 func (gc *GC) findOrphanedChunks(d chan model.ChunkMetadata) {
 	gc.chunkMetaStore.Chunks.Range(func(k any, v any) bool {
 		c := v.(model.ChunkMetadata)
@@ -54,12 +54,26 @@ func (gc *GC) findOrphanedChunks(d chan model.ChunkMetadata) {
 }
 
 // sweep performs delete of a chunk
-func (gc *GC) sweep(f model.ChunkMetadata) {
-	for _, csId := range f.ChunkServers {
+func (gc *GC) sweep(chunk model.ChunkMetadata) {
+	var removedChunks int
+
+	for _, csId := range chunk.ChunkServers {
 		cs := gc.chunkServerMetaStore.GetChunkServerMetadata(csId)
 		// TODO: Create some retry queue and or workerpool
-		if err := deleteChunk(f.ID, cs); err != nil {
-			log.Error("Error when deleting chunk", "chunkId", f.ID.String(), "chunkServerId", csId.String())
+		if err := deleteChunk(chunk.ID, cs); err != nil {
+			log.Error("Error when deleting chunk", "chunkId", chunk.ID.String(), "chunkServerId", csId.String())
+			continue
 		}
+
+		err := gc.chunkMetaStore.RemoveChunkHolderFromChunk(csId, chunk.ID)
+		if err != nil {
+			log.Error("Error when deleting chunk", "chunkId", chunk.ID.String(), "chunkServerId", csId.String())
+		}
+		removedChunks += 1
+	}
+
+	if removedChunks == len(chunk.ChunkServers) {
+		log.Info("Cleaned chunk", "chunkId", chunk.ID, "chunkServers", chunk.ChunkServers)
+		gc.chunkMetaStore.RemoveChunkMetadata(chunk.ID)
 	}
 }
