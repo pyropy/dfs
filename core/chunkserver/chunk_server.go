@@ -3,15 +3,16 @@ package chunkserver
 import (
 	"context"
 	"errors"
+	"log"
+	"net/rpc"
+	"sync"
+	"time"
+
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/cache"
 	"github.com/pyropy/dfs/lib/checksum"
 	rpcChunkServer "github.com/pyropy/dfs/rpc/chunkserver"
 	"github.com/pyropy/dfs/rpc/master"
-	"log"
-	"net/rpc"
-	"sync"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,8 +20,8 @@ import (
 type ChunkServer struct {
 	*ChunkService
 	*LeaseStore
-	*HealthMonitorService
-	*LeaseMonitorService
+	*HealthMonitor
+	*LeaseMonitor
 
 	Cfg           *Config
 	LRU           *cache.LRU
@@ -43,12 +44,12 @@ func NewChunkServer(cfg *Config) *ChunkServer {
 	chunkService := NewChunkService(cfg)
 
 	return &ChunkServer{
-		Cfg:                  cfg,
-		LeaseStore:           leaseStore,
-		ChunkService:         chunkService,
-		LRU:                  cache.NewLRU(100),
-		HealthMonitorService: NewHealthReportService(chunkService),
-		LeaseMonitorService:  NewLeaseMonitor(leaseStore, leaseExpChan),
+		Cfg:           cfg,
+		LeaseStore:    leaseStore,
+		ChunkService:  chunkService,
+		LRU:           cache.NewLRU(100),
+		HealthMonitor: NewHealthMonitor(chunkService),
+		LeaseMonitor:  NewLeaseMonitor(leaseStore, leaseExpChan),
 	}
 }
 
@@ -151,11 +152,11 @@ func (c *ChunkServer) IncrementChunkVersion(chunkID uuid.UUID, version int) erro
 }
 
 func (c *ChunkServer) StartLeaseMonitor(ctx context.Context) {
-	c.LeaseMonitorService.Start(ctx)
+	c.LeaseMonitor.Start(ctx)
 }
 
 func (c *ChunkServer) StartHealthReport(ctx context.Context) {
-	c.HealthMonitorService.Start(ctx)
+	c.HealthMonitor.Start(ctx)
 }
 
 // RegisterChunkServer registers chunk server instance with Master API
@@ -166,10 +167,7 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 		return err
 	}
 
-	c.MasterAddr = masterAddr
-	c.HealthMonitorService.masterAddr = masterAddr
-	c.LeaseMonitorService.masterAddr = masterAddr
-
+	c.SetMasterAddress(masterAddr)
 	var reply master.RegisterReply
 	args := &master.RegisterArgs{Address: addr}
 	err = client.Call("MasterAPI.RegisterChunkServer", args, &reply)
@@ -177,11 +175,20 @@ func (c *ChunkServer) RegisterChunkServer(masterAddr, addr string) error {
 		return err
 	}
 
-	c.ChunkServerID = reply.ID
-	c.HealthMonitorService.chunkServerID = reply.ID
-	c.LeaseMonitorService.chunkServerID = reply.ID
-
+	c.SetChunkServerID(reply.ID)
 	return nil
+}
+
+func (c *ChunkServer) SetMasterAddress(addr string) {
+	c.MasterAddr = addr
+	c.HealthMonitor.masterAddr = addr
+	c.LeaseMonitor.masterAddr = addr
+}
+
+func (c *ChunkServer) SetChunkServerID(id uuid.UUID) {
+	c.ChunkServerID = id
+	c.HealthMonitor.chunkServerID = id
+	c.LeaseMonitor.chunkServerID = id
 }
 
 func (c *ChunkServer) SendApplyMigration(chunkID uuid.UUID, checksum int, offset int, version int, address string) error {

@@ -3,13 +3,18 @@ package chunkserver
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pyropy/dfs/core/model"
-	"github.com/pyropy/dfs/lib/cmap"
 	"log"
 	"os"
 	fp "path/filepath"
 	"sync"
+
+	"github.com/google/uuid"
+	"github.com/pyropy/dfs/core/model"
+	"github.com/pyropy/dfs/lib/cmap"
+)
+
+var (
+	ErrChunkDoesNotExist = errors.New("chunk does not exist")
 )
 
 type ChunkService struct {
@@ -17,10 +22,6 @@ type ChunkService struct {
 	Lock   sync.RWMutex
 	Chunks cmap.Map[uuid.UUID, model.Chunk]
 }
-
-var (
-	ErrChunkDoesNotExist = errors.New("chunk does not exist")
-)
 
 func NewChunkService(cfg *Config) *ChunkService {
 	return &ChunkService{

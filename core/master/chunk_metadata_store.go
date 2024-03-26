@@ -2,6 +2,7 @@ package master
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/cmap"
@@ -87,12 +88,12 @@ func (cs *ChunkMetadataStore) UpdateChunksLocation(chunkHolder uuid.UUID, chunks
 		switch {
 		case inChunkHolders && !isCurrentlyHoldingChunk:
 			chunk.ChunkServers = utils.Remove(chunk.ChunkServers, chunkHolder)
-			log.Info("Removed")
+			log.Debug("Removed")
 		case !inChunkHolders && isCurrentlyHoldingChunk:
 			chunk.ChunkServers = append(chunk.ChunkServers, chunkHolder)
-			log.Info("Appended")
+			log.Debug("Appended")
 		default:
-			log.Info("Nothing happened")
+			log.Debug("Nothing happened")
 		}
 
 		cs.Chunks.Set(chunkID, chunk)

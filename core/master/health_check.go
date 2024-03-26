@@ -2,8 +2,9 @@ package master
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type HealthCheckService struct {
@@ -31,7 +32,7 @@ func (hs *HealthCheckService) Start(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case _ = <-ticker.C:
+		case <-ticker.C:
 			hs.cs.ChunkServers.Range(func(k any, v any) bool {
 				cs := v.(ChunkServerMetadata)
 

@@ -2,24 +2,24 @@ package main
 
 import (
 	"github.com/pyropy/dfs/core/constants"
-	masterCore "github.com/pyropy/dfs/core/master"
+	core "github.com/pyropy/dfs/core/master"
 	"github.com/pyropy/dfs/core/model"
-	masterRPC "github.com/pyropy/dfs/rpc/master"
+	rpc "github.com/pyropy/dfs/rpc/master"
 )
 
-type MasterAPI struct {
-	Master *masterCore.Master
+type API struct {
+	server *core.Master
 }
 
-func NewMasterAPI(master *masterCore.Master) *MasterAPI {
-	return &MasterAPI{
-		Master: master,
+func NewMasterAPI(master *core.Master) *API {
+	return &API{
+		server: master,
 	}
 }
 
-func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *masterRPC.RegisterReply) error {
+func (a *API) RegisterChunkServer(args *rpc.RegisterArgs, reply *rpc.RegisterReply) error {
 	log.Infow("rpc", "event", "RegisterChunkServer", "args", args)
-	chunkServer := m.Master.RegisterNewChunkServer(args.Address)
+	chunkServer := a.server.RegisterNewChunkServer(args.Address)
 	reply.ID = chunkServer.ID
 
 	log.Infow("rpc", "status", "registered new chunk server", "id", chunkServer.ID, "address", chunkServer.Address)
@@ -27,9 +27,9 @@ func (m *MasterAPI) RegisterChunkServer(args *masterRPC.RegisterArgs, reply *mas
 	return nil
 }
 
-func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *masterRPC.CreateNewFileReply) error {
+func (a *API) CreateNewFile(args *rpc.CreateNewFileArgs, reply *rpc.CreateNewFileReply) error {
 	log.Infow("rpc", "event", "CreateNewFile", "args", args)
-	file, chunkServerIds, err := m.Master.CreateNewFile(args.Path, args.Size, constants.REPLICATION_FACTOR, constants.CHUNK_SIZE_BYTES)
+	file, chunkServerIds, err := a.server.CreateNewFile(args.Path, args.Size, constants.REPLICATION_FACTOR, constants.CHUNK_SIZE_BYTES)
 	if err != nil {
 		return err
 	}
@@ -39,18 +39,18 @@ func (m *MasterAPI) CreateNewFile(args *masterRPC.CreateNewFileArgs, reply *mast
 	return nil
 }
 
-func (m *MasterAPI) DeleteFile(args *masterRPC.DeleteFileArgs, reply *masterRPC.DeleteFileReply) error {
+func (a *API) DeleteFile(args *rpc.DeleteFileArgs, reply *rpc.DeleteFileReply) error {
 	log.Infow("rpc", "event", "DeleteFile", "args", args)
 	return nil
 }
 
-func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs, reply *masterRPC.RequestLeaseRenewalReply) error {
+func (a *API) RequestLeaseRenewal(args *rpc.RequestLeaseRenewalArgs, reply *rpc.RequestLeaseRenewalReply) error {
 	log.Infow("rpc", "event", "RequestLeaseRenewal", "args", args)
-	chs := masterCore.ChunkServerMetadata{
+	chs := core.ChunkServerMetadata{
 		ID: args.ChunkServerID,
 	}
 
-	lease, err := m.Master.RequestLeaseRenewal(args.ChunkID, &chs)
+	lease, err := a.server.RequestLeaseRenewal(args.ChunkID, &chs)
 	if err != nil {
 		return err
 	}
@@ -61,10 +61,10 @@ func (m *MasterAPI) RequestLeaseRenewal(args *masterRPC.RequestLeaseRenewalArgs,
 	return nil
 }
 
-func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *masterRPC.RequestWriteReply) error {
+func (a *API) RequestWrite(args *rpc.RequestWriteArgs, reply *rpc.RequestWriteReply) error {
 	log.Infow("rpc", "event", "RequestWrite", "args", args)
-	var chunkServers []masterRPC.ChunkServer
-	chunkID, lease, chunkHolders, chunkVersion, err := m.Master.RequestWrite(args.ChunkID)
+	var chunkServers []rpc.ChunkServer
+	chunkID, lease, chunkHolders, chunkVersion, err := a.server.RequestWrite(args.ChunkID)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 	log.Infow("request write", "chunkID", chunkID, "lease", lease, "chunkHolders", chunkHolders, "chunkVersion", chunkVersion, "err", err)
 
 	for _, chunkHolder := range chunkHolders {
-		chunkServer := masterRPC.ChunkServer{
+		chunkServer := rpc.ChunkServer{
 			ID:      chunkHolder.ID,
 			Address: chunkHolder.Address,
 		}
@@ -89,7 +89,7 @@ func (m *MasterAPI) RequestWrite(args *masterRPC.RequestWriteArgs, reply *master
 }
 
 // TODO: Catch stale chunks
-func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.ReportHealthReply) error {
+func (a *API) ReportHealth(args *rpc.ReportHealthArgs, _ *rpc.ReportHealthReply) error {
 	log.Infow("rpc", "event", "ReportHealth", "args", args)
 	var chunks []model.ChunkMetadata
 	// Map rpc Chunks to ChunkMetadata
@@ -105,8 +105,8 @@ func (m *MasterAPI) ReportHealth(args *masterRPC.ReportHealthArgs, _ *masterRPC.
 		chunks = append(chunks, metadata)
 	}
 
-	m.Master.MarkHealthy(args.ChunkServerID)
-	m.Master.UpdateChunksLocation(args.ChunkServerID, chunks)
+	a.server.MarkHealthy(args.ChunkServerID)
+	a.server.UpdateChunksLocation(args.ChunkServerID, chunks)
 
 	return nil
 }

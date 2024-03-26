@@ -2,27 +2,28 @@ package chunkserver
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/pyropy/dfs/rpc/master"
 	"log"
 	"net/rpc"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/pyropy/dfs/rpc/master"
 )
 
-type HealthMonitorService struct {
+type HealthMonitor struct {
 	masterAddr    string
 	chunkServerID uuid.UUID
 	chunkService  *ChunkService
 }
 
-func NewHealthReportService(chunkService *ChunkService) *HealthMonitorService {
-	return &HealthMonitorService{
+func NewHealthMonitor(chunkService *ChunkService) *HealthMonitor {
+	return &HealthMonitor{
 		chunkService: chunkService,
 	}
 }
 
 // Start creates ticker that ticks every 10 seconds and triggers ReportHealth func in new goroutine
-func (h *HealthMonitorService) Start(ctx context.Context) {
+func (h *HealthMonitor) Start(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 
 	for {
@@ -35,7 +36,7 @@ func (h *HealthMonitorService) Start(ctx context.Context) {
 	}
 }
 
-func (h *HealthMonitorService) Report() error {
+func (h *HealthMonitor) Report() error {
 	if h.masterAddr == "" {
 		return nil
 	}

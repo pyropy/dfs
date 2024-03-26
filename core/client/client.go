@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/pyropy/dfs/lib/checksum"
 	"io"
 	"io/ioutil"
 	"net/rpc"
 	"sync"
+
+	"github.com/pyropy/dfs/lib/checksum"
 
 	"github.com/pyropy/dfs/core/constants"
 	"github.com/pyropy/dfs/lib/logger"
@@ -18,12 +19,11 @@ import (
 	"github.com/google/uuid"
 )
 
-var log, _ = logger.New("client")
-
 const ChunkSizeBytes = 64 * 10e+6
 
 var (
-	ErrFileNotFound = errors.New("file not found.")
+	log, _          = logger.New("client")
+	ErrFileNotFound = errors.New("file not found")
 )
 
 type Client struct {
@@ -145,7 +145,7 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		return bytesWritten, err
 	}
 
-    log.Debugw("starting pushing data to chunk servers", "numChunkservers", len(writeRequest.ChunkServers), "lenBytes", len(data))
+	log.Debugw("starting pushing data to chunk servers", "numChunkservers", len(writeRequest.ChunkServers), "lenBytes", len(data))
 	// push bytes in parallel
 	for _, cs := range writeRequest.ChunkServers {
 		wg.Add(1)
@@ -163,7 +163,7 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 	for _, cs := range writeRequest.ChunkServers {
 		if cs.ID == writeRequest.PrimaryChunkServerID {
 			leaseAddr = cs.Address
-            break
+			break
 		}
 	}
 
@@ -181,8 +181,6 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 		chunkServers = append(chunkServers, chunkServer)
 	}
 
-
-
 	checkSum := checksum.CalculateCheckSum(data)
 	args := chunkserver.WriteChunkArgs{
 		ChunkID:      chunkID,
@@ -197,7 +195,7 @@ func (c *Client) WriteChunk(chunkID uuid.UUID, data []byte, offset int) (int, er
 	if err != nil {
 		return 0, err
 	}
-    log.Debugw("Bytes written")
+	log.Debugw("Bytes written")
 	return reply.BytesWritten, nil
 }
 

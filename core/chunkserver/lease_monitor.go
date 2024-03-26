@@ -2,29 +2,30 @@ package chunkserver
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/pyropy/dfs/core/model"
-	"github.com/pyropy/dfs/rpc/master"
 	"log"
 	"net/rpc"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/pyropy/dfs/core/model"
+	"github.com/pyropy/dfs/rpc/master"
 )
 
-type LeaseMonitorService struct {
+type LeaseMonitor struct {
 	masterAddr    string
 	chunkServerID uuid.UUID
 	leaseExpChan  chan model.Lease
 	leaseStore    *LeaseStore
 }
 
-func NewLeaseMonitor(leaseStore *LeaseStore, leaseExpChan chan model.Lease) *LeaseMonitorService {
-	return &LeaseMonitorService{
+func NewLeaseMonitor(leaseStore *LeaseStore, leaseExpChan chan model.Lease) *LeaseMonitor {
+	return &LeaseMonitor{
 		leaseStore:   leaseStore,
 		leaseExpChan: leaseExpChan,
 	}
 }
 
-func (l *LeaseMonitorService) Start(ctx context.Context) {
+func (l *LeaseMonitor) Start(ctx context.Context) {
 	go l.MonitorLeases(ctx)
 
 	for {
@@ -37,13 +38,12 @@ func (l *LeaseMonitorService) Start(ctx context.Context) {
 		case <-ctx.Done():
 			log.Println("shutdown", "leaseMonitorService", "shutting down lease monitor service")
 			return
-		default:
 		}
 	}
 
 }
 
-func (l *LeaseMonitorService) MonitorLeases(ctx context.Context) {
+func (l *LeaseMonitor) MonitorLeases(ctx context.Context) {
 	// loops every 100ms or until canceled
 	for {
 		select {
@@ -67,7 +67,7 @@ func (l *LeaseMonitorService) MonitorLeases(ctx context.Context) {
 }
 
 // RequestLeaseRenewal requests renewal for given lease from master
-func (l *LeaseMonitorService) RequestLeaseRenewal(lease model.Lease) error {
+func (l *LeaseMonitor) RequestLeaseRenewal(lease model.Lease) error {
 	client, err := rpc.DialHTTP("tcp", l.masterAddr)
 	if err != nil {
 		log.Println("error", "unreachable")

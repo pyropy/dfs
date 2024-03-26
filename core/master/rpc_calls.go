@@ -1,54 +1,62 @@
 package master
 
 import (
+	"net/rpc"
+
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
-	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
-	"net/rpc"
+	csRpc "github.com/pyropy/dfs/rpc/chunkserver"
+)
+
+const (
+	RpcCreateChunk           = "ChunkServerAPI.CreateChunk"
+	RpcGrantLease            = "ChunkServerAPI.GrantLease"
+	RpcIncrementChunkVersion = "ChunkServerAPI.IncrementChunkVersion"
+	RpcDeleteChunk           = "ChunkServerAPI.DeleteChunk"
 )
 
 func createNewChunk(id uuid.UUID, filePath string, size int, chunkVersion int, chunkServer *ChunkServerMetadata) error {
-	args := chunkServerRPC.CreateChunkRequest{
+	args := csRpc.CreateChunkRequest{
 		ChunkID:      id,
 		ChunkSize:    size,
 		ChunkVersion: chunkVersion,
 		FilePath:     filePath,
 	}
 
-	reply := chunkServerRPC.CreateChunkReply{}
-	return callChunkServerRPC(chunkServer, "ChunkServerAPI.CreateChunk", args, &reply)
+	reply := csRpc.CreateChunkReply{}
+	return call(chunkServer, RpcCreateChunk, args, &reply)
 }
 
 func sendLeaseGrant(chunkID uuid.UUID, lease *model.Lease, chunkServer *ChunkServerMetadata) error {
-	args := chunkServerRPC.GrantLeaseArgs{
+	args := csRpc.GrantLeaseArgs{
 		ChunkID:    chunkID,
 		ValidUntil: lease.ValidUntil,
 	}
 
-	reply := chunkServerRPC.GrantLeaseReply{}
-	return callChunkServerRPC(chunkServer, "ChunkServerAPI.GrantLease", args, &reply)
+	reply := csRpc.GrantLeaseReply{}
+	return call(chunkServer, RpcGrantLease, args, &reply)
 }
 
 func incrementChunkVersion(chunkID uuid.UUID, version int, chunkServer *ChunkServerMetadata) error {
-	args := chunkServerRPC.IncrementChunkVersionArgs{
+	args := csRpc.IncrementChunkVersionArgs{
 		ChunkID: chunkID,
 		Version: version,
 	}
-	reply := chunkServerRPC.IncrementChunkVersionReply{}
+	reply := csRpc.IncrementChunkVersionReply{}
 
-	return callChunkServerRPC(chunkServer, "ChunkServerAPI.IncrementChunkVersion", args, &reply)
+	return call(chunkServer, RpcIncrementChunkVersion, args, &reply)
 }
 
 func deleteChunk(chunkID uuid.UUID, chunkServer *ChunkServerMetadata) error {
-	args := chunkServerRPC.DeleteChunkRequest{
+	args := csRpc.DeleteChunkRequest{
 		ChunkID: chunkID,
 	}
-	reply := chunkServerRPC.DeleteChunkReply{}
+	reply := csRpc.DeleteChunkReply{}
 
-	return callChunkServerRPC(chunkServer, "ChunkServerAPI.DeleteChunk", args, &reply)
+	return call(chunkServer, RpcDeleteChunk, args, &reply)
 }
 
-func callChunkServerRPC(chunkServer *ChunkServerMetadata, method string, args interface{}, reply interface{}) error {
+func call(chunkServer *ChunkServerMetadata, method string, args interface{}, reply interface{}) error {
 	client, err := rpc.DialHTTP("tcp", chunkServer.Address)
 	if err != nil {
 		log.Info("error", chunkServer.Address, "unreachable")

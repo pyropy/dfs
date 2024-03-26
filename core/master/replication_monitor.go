@@ -2,11 +2,12 @@ package master
 
 import (
 	"context"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/constants"
 	"github.com/pyropy/dfs/core/model"
-	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
-	"time"
+	csRpc "github.com/pyropy/dfs/rpc/chunkserver"
 )
 
 type ReplicationMonitor struct {
@@ -32,7 +33,7 @@ func (rm *ReplicationMonitor) Start(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case _ = <-ticker.C:
+		case <-ticker.C:
 			rm.chunkMetadataStore.Chunks.Range(func(k, v any) bool {
 				c := v.(model.ChunkMetadata)
 				if len(c.ChunkServers) < constants.REPLICATION_FACTOR {
@@ -44,7 +45,6 @@ func (rm *ReplicationMonitor) Start(ctx context.Context) {
 
 				return true
 			})
-		default:
 		}
 	}
 }
@@ -79,10 +79,10 @@ func (rm *ReplicationMonitor) ReplicateChunk(chunkID uuid.UUID) error {
 }
 
 func replicateChunk(chunkID uuid.UUID, from *ChunkServerMetadata, to []ChunkServerMetadata) error {
-	targets := make([]chunkServerRPC.ChunkServer, 0, len(to))
+	targets := make([]csRpc.ChunkServer, 0, len(to))
 	for _, t := range to {
 
-		target := chunkServerRPC.ChunkServer{
+		target := csRpc.ChunkServer{
 			ID:      t.ID,
 			Address: t.Address,
 		}
@@ -90,11 +90,11 @@ func replicateChunk(chunkID uuid.UUID, from *ChunkServerMetadata, to []ChunkServ
 		targets = append(targets, target)
 	}
 
-	args := chunkServerRPC.ReplicateChunkArgs{
+	args := csRpc.ReplicateChunkArgs{
 		ChunkID:      chunkID,
 		ChunkServers: targets,
 	}
 
-	reply := chunkServerRPC.ReplicateChunkReply{}
-	return callChunkServerRPC(from, "ChunkServerAPI.ReplicateChunk", args, &reply)
+	reply := csRpc.ReplicateChunkReply{}
+	return call(from, "ChunkServerAPI.ReplicateChunk", args, &reply)
 }

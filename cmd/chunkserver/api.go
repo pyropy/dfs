@@ -1,24 +1,24 @@
 package main
 
 import (
-	"github.com/pyropy/dfs/core/chunkserver"
-	chunkServerRPC "github.com/pyropy/dfs/rpc/chunkserver"
+	core "github.com/pyropy/dfs/core/chunkserver"
+	rpc "github.com/pyropy/dfs/rpc/chunkserver"
 )
 
-type ChunkServerAPI struct {
-	ChunkServer *chunkserver.ChunkServer
+type API struct {
+	server *core.ChunkServer
 }
 
-func NewChunkServerAPI(chunkServer *chunkserver.ChunkServer) *ChunkServerAPI {
-	return &ChunkServerAPI{
-		ChunkServer: chunkServer,
+func NewChunkServerAPI(chunkServer *core.ChunkServer) *API {
+	return &API{
+		server: chunkServer,
 	}
 }
 
 // CreateChunk ...
-func (c *ChunkServerAPI) CreateChunk(args *chunkServerRPC.CreateChunkRequest, reply *chunkServerRPC.CreateChunkReply) error {
+func (a *API) CreateChunk(args *rpc.CreateChunkRequest, reply *rpc.CreateChunkReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.CreateChunk", "args", args)
-	chunk, err := c.ChunkServer.CreateChunk(args.ChunkID, args.FilePath, args.ChunkIndex, args.ChunkVersion, args.ChunkSize)
+	chunk, err := a.server.CreateChunk(args.ChunkID, args.FilePath, args.ChunkIndex, args.ChunkVersion, args.ChunkSize)
 	if err != nil {
 		return err
 	}
@@ -31,16 +31,16 @@ func (c *ChunkServerAPI) CreateChunk(args *chunkServerRPC.CreateChunkRequest, re
 }
 
 // DeleteChunk ...
-func (c *ChunkServerAPI) DeleteChunk(args *chunkServerRPC.DeleteChunkRequest, _ *chunkServerRPC.DeleteChunkReply) error {
+func (a *API) DeleteChunk(args *rpc.DeleteChunkRequest, _ *rpc.DeleteChunkReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.DeleteChunk", "args", args)
-	return c.ChunkServer.DeleteChunk(args.ChunkID)
+	return a.server.DeleteChunk(args.ChunkID)
 }
 
 // GrantLease ...
-func (c *ChunkServerAPI) GrantLease(args *chunkServerRPC.GrantLeaseArgs, _ *chunkServerRPC.GrantLeaseReply) error {
+func (a *API) GrantLease(args *rpc.GrantLeaseArgs, _ *rpc.GrantLeaseReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.GrantLease", "args", args)
 
-	err := c.ChunkServer.GrantLease(args.ChunkID, args.ValidUntil)
+	err := a.server.GrantLease(args.ChunkID, args.ValidUntil)
 	if err != nil {
 		return err
 	}
@@ -49,16 +49,16 @@ func (c *ChunkServerAPI) GrantLease(args *chunkServerRPC.GrantLeaseArgs, _ *chun
 }
 
 // IncrementChunkVersion ...
-func (c *ChunkServerAPI) IncrementChunkVersion(args *chunkServerRPC.IncrementChunkVersionArgs, _ *chunkServerRPC.IncrementChunkVersionReply) error {
+func (a *API) IncrementChunkVersion(args *rpc.IncrementChunkVersionArgs, _ *rpc.IncrementChunkVersionReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.IncrementChunkVersion", "args", args)
 
-	return c.ChunkServer.IncrementChunkVersion(args.ChunkID, args.Version)
+	return a.server.IncrementChunkVersion(args.ChunkID, args.Version)
 }
 
-func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, _ *chunkServerRPC.TransferDataReply) error {
+func (a *API) TransferData(args *rpc.TransferDataArgs, _ *rpc.TransferDataReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.TransferData", "checksum", args.CheckSum)
 
-	err := c.ChunkServer.ReceiveBytes(args.Data, args.CheckSum)
+	err := a.server.ReceiveBytes(args.Data, args.CheckSum)
 	if err != nil {
 		return err
 	}
@@ -66,10 +66,10 @@ func (c *ChunkServerAPI) TransferData(args *chunkServerRPC.TransferDataArgs, _ *
 	return nil
 }
 
-func (c *ChunkServerAPI) WriteChunk(args *chunkServerRPC.WriteChunkArgs, reply *chunkServerRPC.WriteChunkReply) error {
+func (a *API) WriteChunk(args *rpc.WriteChunkArgs, reply *rpc.WriteChunkReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.WriteChunk", "args", args)
 
-	bytesWritten, err := c.ChunkServer.WriteChunk(args.ChunkID, args.CheckSum, args.Offset, args.Version, args.ChunkServers)
+	bytesWritten, err := a.server.WriteChunk(args.ChunkID, args.CheckSum, args.Offset, args.Version, args.ChunkServers)
 	if err != nil {
 		return err
 	}
@@ -79,10 +79,10 @@ func (c *ChunkServerAPI) WriteChunk(args *chunkServerRPC.WriteChunkArgs, reply *
 	return nil
 }
 
-func (c *ChunkServerAPI) ApplyMigration(args *chunkServerRPC.ApplyMigrationArgs, reply *chunkServerRPC.ApplyMigrationReply) error {
+func (a *API) ApplyMigration(args *rpc.ApplyMigrationArgs, reply *rpc.ApplyMigrationReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.ApplyMigration", "args", args)
 
-	bytesWritten, err := c.ChunkServer.ApplyMigration(args.ChunkID, args.CheckSum, args.Offset, args.Version)
+	bytesWritten, err := a.server.ApplyMigration(args.ChunkID, args.CheckSum, args.Offset, args.Version)
 	if err != nil {
 		return err
 	}
@@ -92,10 +92,10 @@ func (c *ChunkServerAPI) ApplyMigration(args *chunkServerRPC.ApplyMigrationArgs,
 	return nil
 }
 
-func (c *ChunkServerAPI) ReplicateChunk(args *chunkServerRPC.ReplicateChunkArgs, reply *chunkServerRPC.ReplicateChunkReply) error {
+func (a *API) ReplicateChunk(args *rpc.ReplicateChunkArgs, reply *rpc.ReplicateChunkReply) error {
 	log.Infow("rpc", "event", "ChunkServerAPI.ReplicateChunk", "args", args)
 
-	err := c.ChunkServer.ReplicateChunk(args.ChunkID, args.ChunkServers)
+	err := a.server.ReplicateChunk(args.ChunkID, args.ChunkServers)
 	if err != nil {
 		return err
 	}

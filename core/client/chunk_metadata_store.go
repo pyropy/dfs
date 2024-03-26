@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+
 	"github.com/google/uuid"
 	"github.com/pyropy/dfs/core/model"
 	"github.com/pyropy/dfs/lib/cmap"
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	ErrChunkNotFound = errors.New("Chunk not found.")
+	ErrChunkNotFound = errors.New("chunk not found")
 )
 
 type ChunkMetadataStore struct {
