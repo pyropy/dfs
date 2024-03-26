@@ -79,10 +79,10 @@ func (c *ChunkServer) WriteChunk(chunkID uuid.UUID, checksum int, offset int, ve
 	// Notify other holders to apply migration
 	var wg sync.WaitGroup
 	for _, ch := range chunkHolders {
-        // don't send migration to self
-        if ch.ID == c.ChunkServerID {
-            continue
-        }
+		// don't send migration to self
+		if ch.ID == c.ChunkServerID {
+			continue
+		}
 
 		wg.Add(1)
 		go func(chunkServer rpcChunkServer.ChunkServer) {
@@ -227,8 +227,8 @@ func (c *ChunkServer) ReplicateChunk(chunkID uuid.UUID, chunkServers []rpcChunkS
 
 	// create chunks
 	for _, chunkServer := range chunkServers {
+		wg.Add(1)
 		go func(chunkServer rpcChunkServer.ChunkServer) error {
-			wg.Add(1)
 			defer wg.Done()
 
 			conn, err := rpc.DialHTTP("tcp", chunkServer.Address)
